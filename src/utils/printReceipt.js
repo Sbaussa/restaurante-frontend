@@ -3,7 +3,7 @@ import api from "./api";
 export async function printReceipt(order) {
   try {
     // Siempre imprime via backend local donde está la impresora
-    const response = await fetch("http://localhost:3002/api/print", {
+    const response = await fetch("http://192.168.1.192.168.1.100:3002/api/print", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

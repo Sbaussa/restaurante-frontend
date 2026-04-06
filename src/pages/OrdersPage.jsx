@@ -81,7 +81,6 @@ function PaymentModal({ order, onConfirm, onClose }) {
                 />
               </div>
 
-              {/* Cambio */}
               {cashGiven && Number(cashGiven) >= order.total && (
                 <div className="bg-green-900/20 border border-green-800 rounded-lg px-4 py-3 flex justify-between items-center">
                   <span className="text-green-400 text-sm font-medium">Cambio</span>
@@ -104,7 +103,7 @@ function PaymentModal({ order, onConfirm, onClose }) {
             onClick={() => canConfirm && onConfirm({
               method,
               cashGiven: method === "EFECTIVO" ? Number(cashGiven) : null,
-              change: method === "EFECTIVO" ? Number(cashGiven) - order.total : null,
+              change:    method === "EFECTIVO" ? Number(cashGiven) - order.total : null,
             })}
             disabled={!canConfirm}
             className="w-full bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-gray-900 font-bold py-3 rounded-xl transition-colors"
@@ -124,7 +123,8 @@ export default function OrdersPage() {
   const [dateFilter, setDateFilter] = useState(TODAY);
   const [updating, setUpdating] = useState(null);
   const [cancelling, setCancelling] = useState(null);
-  const [paymentOrder, setPaymentOrder] = useState(null); // orden pendiente de pago
+  const [paymentOrder, setPaymentOrder] = useState(null);
+  const [paidOrders, setPaidOrders] = useState({}); // { orderId: paymentInfo }
 
   const filter = {
     ...(statusFilter ? { status: statusFilter } : {}),
@@ -144,7 +144,7 @@ export default function OrdersPage() {
       setPaymentOrder(order);
       return;
     }
-  
+
     setUpdating(orderId);
     try {
       await api.patch(`/orders/${orderId}/status`, { status: next });
@@ -160,6 +160,8 @@ export default function OrdersPage() {
     setUpdating(paymentOrder.id);
     try {
       await api.patch(`/orders/${paymentOrder.id}/status`, { status: "DELIVERED" });
+      // Guardar pago en memoria para el ticket
+      setPaidOrders((prev) => ({ ...prev, [paymentOrder.id]: paymentInfo }));
       refetch();
     } catch {
       alert("Error al confirmar el pago");
@@ -315,7 +317,10 @@ export default function OrdersPage() {
                   )}
                   {order.status !== "CANCELLED" && (
                     <button
-                      onClick={() => printReceipt(order)}
+                      onClick={() => printReceipt({
+                        ...order,
+                        payment: paidOrders[order.id] || null,
+                      })}
                       className="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 text-xs font-medium px-3 py-2 rounded-lg transition-colors"
                       title="Imprimir factura"
                     >

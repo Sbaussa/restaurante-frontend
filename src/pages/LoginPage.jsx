@@ -29,7 +29,7 @@ export default function LoginPage() {
         {/* Header */}
         <div className="text-center mb-8">
           <span className="text-5xl">🍔</span>
-          <h1 className="text-3xl font-bold text-amber-400 mt-3">BurgerDash</h1>
+          <h1 className="text-3xl font-bold text-amber-400 mt-3">El Nuevo Baraton</h1>
           <p className="text-gray-500 mt-1">Panel de gestión del restaurante</p>
         </div>
 

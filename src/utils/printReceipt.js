@@ -2,8 +2,21 @@ import api from "./api";
 
 export async function printReceipt(order) {
   try {
-    await api.post("/print", { order });
+    // Siempre imprime via backend local donde está la impresora
+    const response = await fetch("http://localhost:3002/api/print", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": api.defaults.headers.common["Authorization"],
+      },
+      body: JSON.stringify({ order }),
+    });
+
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.message || "Error al imprimir");
+    }
   } catch (err) {
-    alert(err.response?.data?.message || "Error al imprimir");
+    alert(err.message || "Error al imprimir");
   }
 }

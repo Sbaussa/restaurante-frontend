@@ -146,7 +146,7 @@ export default function LoginPage() {
         </div>
 
         <p className="text-center text-gray-700 text-xs mt-6">
-          © 2026 El Nuevo Baratón — Todos los derechos reservados
+          © 2026 Baussas — Todos los derechos reservados.
         </p>
       </div>
     </div>

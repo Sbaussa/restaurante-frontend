@@ -3,85 +3,15 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useProducts } from "../hooks/useData";
 import api from "../utils/api";
 
-export default function NewOrderPage() {
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const { data: products, loading } = useProducts({ available: true });
-  const [cart, setCart] = useState({});
-  const [tableNumber, setTableNumber] = useState(searchParams.get("table") || "");
-  const [notes, setNotes] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [search, setSearch] = useState("");
-  const [activeCategory, setActiveCategory] = useState("Todas");
-  const [cartOpen, setCartOpen] = useState(false);
-
-  const addToCart = (productId) => {
-    setCart((prev) => ({ ...prev, [productId]: (prev[productId] || 0) + 1 }));
-  };
-
-  const removeFromCart = (productId) => {
-    setCart((prev) => {
-      const next = { ...prev };
-      if (next[productId] > 1) next[productId]--;
-      else delete next[productId];
-      return next;
-    });
-  };
-
-  const cartItems = Object.entries(cart).map(([id, qty]) => {
-    const product = products?.find((p) => p.id === Number(id));
-    return { product, quantity: qty };
-  }).filter((i) => i.product);
-
-  const total = cartItems.reduce(
-    (sum, { product, quantity }) => sum + product.price * quantity, 0
-  );
-
-  const totalItems = cartItems.reduce((sum, { quantity }) => sum + quantity, 0);
-
-  const handleSubmit = async () => {
-    if (!cartItems.length) return alert("Agrega al menos un producto");
-    setSubmitting(true);
-    try {
-      await api.post("/orders", {
-        tableNumber: tableNumber ? Number(tableNumber) : null,
-        notes: notes || null,
-        items: cartItems.map(({ product, quantity }) => ({
-          productId: product.id,
-          quantity,
-        })),
-      });
-      navigate("/orders", { state: { refresh: true } });
-    } catch (err) {
-      alert(err.response?.data?.message || "Error al crear pedido");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const categories = useMemo(() => {
-    const cats = products?.map((p) => p.category?.name || "Sin categoría") || [];
-    return ["Todas", ...Array.from(new Set(cats))];
-  }, [products]);
-
-  const filtered = useMemo(() => {
-    return (products || []).filter((p) => {
-      const matchSearch = p.name.toLowerCase().includes(search.toLowerCase());
-      const matchCat = activeCategory === "Todas" || (p.category?.name || "Sin categoría") === activeCategory;
-      return matchSearch && matchCat;
-    });
-  }, [products, search, activeCategory]);
-
-  const grouped = useMemo(() => {
-    return filtered.reduce((acc, p) => {
-      const cat = p.category?.name || "Sin categoría";
-      if (!acc[cat]) acc[cat] = [];
-      acc[cat].push(p);
-      return acc;
-    }, {});
-  }, [filtered]);
-
-  const CartPanel = () => (
+// ── CartPanel como componente externo para evitar re-renders ──
+function CartPanel({
+  tableNumber, setTableNumber,
+  notes, setNotes,
+  cartItems, total,
+  addToCart, removeFromCart,
+  submitting, handleSubmit,
+}) {
+  return (
     <div className="flex flex-col h-full">
       <h3 className="text-sm font-semibold text-gray-400 mb-4">Resumen del pedido</h3>
 
@@ -148,6 +78,93 @@ export default function NewOrderPage() {
       </button>
     </div>
   );
+}
+
+export default function NewOrderPage() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { data: products, loading } = useProducts({ available: true });
+  const [cart, setCart] = useState({});
+  const [tableNumber, setTableNumber] = useState(searchParams.get("table") || "");
+  const [notes, setNotes] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [search, setSearch] = useState("");
+  const [activeCategory, setActiveCategory] = useState("Todas");
+  const [cartOpen, setCartOpen] = useState(false);
+
+  const addToCart = (productId) => {
+    setCart((prev) => ({ ...prev, [productId]: (prev[productId] || 0) + 1 }));
+  };
+
+  const removeFromCart = (productId) => {
+    setCart((prev) => {
+      const next = { ...prev };
+      if (next[productId] > 1) next[productId]--;
+      else delete next[productId];
+      return next;
+    });
+  };
+
+  const cartItems = Object.entries(cart).map(([id, qty]) => {
+    const product = products?.find((p) => p.id === Number(id));
+    return { product, quantity: qty };
+  }).filter((i) => i.product);
+
+  const total = cartItems.reduce(
+    (sum, { product, quantity }) => sum + product.price * quantity, 0
+  );
+
+  const totalItems = cartItems.reduce((sum, { quantity }) => sum + quantity, 0);
+
+  const handleSubmit = async () => {
+    if (!cartItems.length) return alert("Agrega al menos un producto");
+    setSubmitting(true);
+    try {
+      await api.post("/orders", {
+        tableNumber: tableNumber ? Number(tableNumber) : null,
+        notes: notes || null,
+        items: cartItems.map(({ product, quantity }) => ({
+          productId: product.id,
+          quantity,
+        })),
+      });
+      navigate("/orders", { state: { refresh: true } });
+    } catch (err) {
+      alert(err.response?.data?.message || "Error al crear pedido");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const categories = useMemo(() => {
+    const cats = products?.map((p) => p.category?.name || "Sin categoría") || [];
+    return ["Todas", ...Array.from(new Set(cats))];
+  }, [products]);
+
+  const filtered = useMemo(() => {
+    return (products || []).filter((p) => {
+      const matchSearch = p.name.toLowerCase().includes(search.toLowerCase());
+      const matchCat    = activeCategory === "Todas" || (p.category?.name || "Sin categoría") === activeCategory;
+      return matchSearch && matchCat;
+    });
+  }, [products, search, activeCategory]);
+
+  const grouped = useMemo(() => {
+    return filtered.reduce((acc, p) => {
+      const cat = p.category?.name || "Sin categoría";
+      if (!acc[cat]) acc[cat] = [];
+      acc[cat].push(p);
+      return acc;
+    }, {});
+  }, [filtered]);
+
+  const cartPanelProps = {
+    tableNumber, setTableNumber,
+    notes, setNotes,
+    cartItems, total,
+    addToCart, removeFromCart,
+    submitting, handleSubmit,
+  };
 
   return (
     <div className="h-full flex flex-col md:flex-row md:gap-6 md:p-8">
@@ -246,7 +263,7 @@ export default function NewOrderPage() {
 
       {/* ── Carrito desktop ── */}
       <div className="hidden md:block w-80 bg-gray-900 border border-gray-800 rounded-2xl p-6 h-fit sticky top-0">
-        <CartPanel />
+        <CartPanel {...cartPanelProps} />
       </div>
 
       {/* ── Botón flotante móvil ── */}
@@ -271,7 +288,7 @@ export default function NewOrderPage() {
               <h3 className="text-white font-semibold">Carrito</h3>
               <button onClick={() => setCartOpen(false)} className="text-gray-500 hover:text-white text-2xl leading-none">×</button>
             </div>
-            <CartPanel />
+            <CartPanel {...cartPanelProps} />
           </div>
         </div>
       )}

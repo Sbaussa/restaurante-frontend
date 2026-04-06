@@ -1,6 +1,7 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useOrders } from "../hooks/useData";
+import { socket } from "../utils/socket";
 import api from "../utils/api";
 
 const STATUS_LABELS = {
@@ -10,16 +11,51 @@ const STATUS_LABELS = {
 
 export default function KitchenPage() {
   const navigate = useNavigate();
-  const { data: orders, loading, refetch } = useOrders({ status: "PENDING" });
-  const { data: preparing, refetch: refetchPreparing } = useOrders({ status: "PREPARING" });
+  const { data: orders,    loading, refetch }            = useOrders({ status: "PENDING" });
+  const { data: preparing, refetch: refetchPreparing }   = useOrders({ status: "PREPARING" });
+  const audioRef = useRef(null);
 
   useEffect(() => {
+    // Auto-refresh cada 20 segundos
     const id = setInterval(() => {
       refetch();
       refetchPreparing();
     }, 20000);
-    return () => clearInterval(id);
+
+    // Socket — actualiza y suena cuando llega pedido nuevo
+    socket.connect();
+    socket.on("order:new", () => {
+      refetch();
+      refetchPreparing();
+      playAlert();
+    });
+    socket.on("order:updated", () => {
+      refetch();
+      refetchPreparing();
+    });
+
+    return () => {
+      clearInterval(id);
+      socket.off("order:new");
+      socket.off("order:updated");
+      socket.disconnect();
+    };
   }, []);
+
+  const playAlert = () => {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = 880;
+      gain.gain.setValueAtTime(0.3, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.5);
+    } catch {}
+  };
 
   const advance = async (orderId, nextStatus) => {
     try {
@@ -32,18 +68,17 @@ export default function KitchenPage() {
   };
 
   const allOrders = [
-    ...(orders || []).map((o) => ({ ...o, status: "PENDING" })),
-    ...(preparing || []).map((o) => ({ ...o, status: "PREPARING" })),
+    ...(orders   || []).map((o) => ({ ...o, status: "PENDING" })),
+    ...(preparing|| []).map((o) => ({ ...o, status: "PREPARING" })),
   ].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 
   return (
     <div className="min-h-screen bg-gray-950 p-6">
-      {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-4">
           <button
             onClick={() => navigate("/dashboard")}
-            className="flex items-center gap-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 px-3 py-2 rounded-lg text-sm transition-colors"
+            className="flex items-center gap-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 px-3 py-2 rounded-lg text-sm"
           >
             ← Volver
           </button>
@@ -56,7 +91,7 @@ export default function KitchenPage() {
         </div>
         <button
           onClick={() => { refetch(); refetchPreparing(); }}
-          className="flex items-center gap-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 px-4 py-2 rounded-lg text-sm transition-colors"
+          className="flex items-center gap-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 px-4 py-2 rounded-lg text-sm"
         >
           <span>↻</span> Actualizar
         </button>
@@ -90,9 +125,7 @@ export default function KitchenPage() {
                   </div>
                   <div className="text-right">
                     <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
-                      isPending
-                        ? "bg-yellow-900/50 text-yellow-400"
-                        : "bg-blue-900/50 text-blue-400"
+                      isPending ? "bg-yellow-900/50 text-yellow-400" : "bg-blue-900/50 text-blue-400"
                     }`}>
                       {st.label}
                     </span>

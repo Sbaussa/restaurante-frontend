@@ -16,22 +16,16 @@ function TableCard({ table, onClick }) {
   return (
     <button
       onClick={() => onClick(table)}
-      className={`${cfg.bg} border-2 ${cfg.border} rounded-2xl p-4 text-left transition-all hover:scale-105 active:scale-95`}
+      className={`${cfg.bg} border-2 ${cfg.border} rounded-2xl p-4 text-left transition-all hover:scale-105 active:scale-95 w-full`}
     >
       <div className="flex items-start justify-between mb-3">
         <div>
           <p className="text-white font-bold text-xl">Mesa {table.number}</p>
           <span className={`text-xs font-medium ${cfg.text}`}>{cfg.label}</span>
         </div>
-        {table.status === "ready" && (
-          <span className="text-xl animate-bounce">🔔</span>
-        )}
-        {table.status === "occupied" && (
-          <span className="text-xl">🍽️</span>
-        )}
-        {table.status === "free" && (
-          <span className="text-xl">✅</span>
-        )}
+        {table.status === "ready"    && <span className="text-xl animate-bounce">🔔</span>}
+        {table.status === "occupied" && <span className="text-xl">🍽️</span>}
+        {table.status === "free"     && <span className="text-xl">✅</span>}
       </div>
 
       {order && (
@@ -63,9 +57,7 @@ function OrderModal({ table, onClose }) {
         <div className="flex items-center justify-between p-6 border-b border-gray-800">
           <div>
             <h3 className="text-white font-semibold text-lg">Mesa {table.number}</h3>
-            {order && (
-              <p className="text-gray-500 text-xs mt-0.5">Pedido #{order.id}</p>
-            )}
+            {order && <p className="text-gray-500 text-xs mt-0.5">Pedido #{order.id}</p>}
           </div>
           <button onClick={onClose} className="text-gray-500 hover:text-white text-xl">×</button>
         </div>
@@ -75,10 +67,13 @@ function OrderModal({ table, onClose }) {
             <div className="text-center py-4">
               <p className="text-gray-500 text-sm mb-4">Mesa libre</p>
               <button
-                onClick={() => { onClose(); navigate("/orders/new"); }}
+                onClick={() => {
+                  onClose();
+                  navigate(`/orders/new?table=${table.number}`);
+                }}
                 className="w-full bg-amber-500 hover:bg-amber-400 text-gray-900 font-bold py-3 rounded-xl"
               >
-                + Nuevo pedido
+                + Nuevo pedido para Mesa {table.number}
               </button>
             </div>
           ) : (
@@ -124,10 +119,8 @@ export default function TablesPage() {
   const { data: tables, loading, refetch } = useFetch("/tables");
   const [selected, setSelected] = useState(null);
 
-  // Escucha eventos de socket para actualizar en tiempo real
   useEffect(() => {
     socket.connect();
-
     socket.on("order:new",     () => refetch());
     socket.on("order:updated", () => refetch());
 
@@ -138,9 +131,9 @@ export default function TablesPage() {
     };
   }, []);
 
-  const free     = tables?.filter((t) => t.status === "free").length || 0;
+  const free     = tables?.filter((t) => t.status === "free").length     || 0;
   const occupied = tables?.filter((t) => t.status === "occupied").length || 0;
-  const ready    = tables?.filter((t) => t.status === "ready").length || 0;
+  const ready    = tables?.filter((t) => t.status === "ready").length    || 0;
 
   return (
     <div className="p-4 md:p-8">
@@ -153,8 +146,10 @@ export default function TablesPage() {
             <span className="text-xs text-green-400">🔔 {ready} listas</span>
           </div>
         </div>
-        <button onClick={refetch}
-          className="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 px-3 py-2 rounded-lg text-sm">
+        <button
+          onClick={refetch}
+          className="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 px-3 py-2 rounded-lg text-sm"
+        >
           ↻ Actualizar
         </button>
       </div>
@@ -170,7 +165,10 @@ export default function TablesPage() {
       )}
 
       {selected && (
-        <OrderModal table={selected} onClose={() => setSelected(null)} />
+        <OrderModal
+          table={selected}
+          onClose={() => setSelected(null)}
+        />
       )}
     </div>
   );

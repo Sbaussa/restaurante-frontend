@@ -1,17 +1,18 @@
 import { useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useProducts } from "../hooks/useData";
 import api from "../utils/api";
 
 export default function NewOrderPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { data: products, loading } = useProducts({ available: true });
   const [cart, setCart] = useState({});
-  const [tableNumber, setTableNumber] = useState("");
+  const [tableNumber, setTableNumber] = useState(searchParams.get("table") || "");
   const [submitting, setSubmitting] = useState(false);
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("Todas");
-  const [cartOpen, setCartOpen] = useState(false); // móvil: abre el carrito
+  const [cartOpen, setCartOpen] = useState(false);
 
   const addToCart = (productId) => {
     setCart((prev) => ({ ...prev, [productId]: (prev[productId] || 0) + 1 }));
@@ -43,7 +44,10 @@ export default function NewOrderPage() {
     try {
       await api.post("/orders", {
         tableNumber: tableNumber ? Number(tableNumber) : null,
-        items: cartItems.map(({ product, quantity }) => ({ productId: product.id, quantity })),
+        items: cartItems.map(({ product, quantity }) => ({
+          productId: product.id,
+          quantity,
+        })),
       });
       navigate("/orders", { state: { refresh: true } });
     } catch (err) {
@@ -133,7 +137,14 @@ export default function NewOrderPage() {
 
       {/* ── Productos ── */}
       <div className="flex-1 overflow-y-auto p-4 md:p-0">
-        <h2 className="text-xl md:text-2xl font-bold text-white mb-4 md:mb-6">Nuevo Pedido</h2>
+        <div className="flex items-center gap-3 mb-4 md:mb-6">
+          <h2 className="text-xl md:text-2xl font-bold text-white">Nuevo Pedido</h2>
+          {tableNumber && (
+            <span className="bg-amber-500/20 border border-amber-600 text-amber-400 text-xs font-bold px-3 py-1 rounded-full">
+              Mesa {tableNumber}
+            </span>
+          )}
+        </div>
 
         {/* Búsqueda + categorías */}
         <div className="mb-4 md:mb-6 space-y-3">
@@ -158,7 +169,7 @@ export default function NewOrderPage() {
             )}
           </div>
 
-          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+          <div className="flex gap-2 overflow-x-auto pb-1">
             {categories.map((cat) => (
               <button key={cat} onClick={() => setActiveCategory(cat)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
@@ -213,11 +224,10 @@ export default function NewOrderPage() {
           ))
         )}
 
-        {/* Espacio para el botón flotante en móvil */}
         <div className="h-24 md:hidden" />
       </div>
 
-      {/* ── Carrito desktop (sidebar derecho) ── */}
+      {/* ── Carrito desktop ── */}
       <div className="hidden md:block w-80 bg-gray-900 border border-gray-800 rounded-2xl p-6 h-fit sticky top-0">
         <CartPanel />
       </div>

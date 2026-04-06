@@ -9,6 +9,7 @@ export default function NewOrderPage() {
   const { data: products, loading } = useProducts({ available: true });
   const [cart, setCart] = useState({});
   const [tableNumber, setTableNumber] = useState(searchParams.get("table") || "");
+  const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("Todas");
@@ -44,6 +45,7 @@ export default function NewOrderPage() {
     try {
       await api.post("/orders", {
         tableNumber: tableNumber ? Number(tableNumber) : null,
+        notes: notes || null,
         items: cartItems.map(({ product, quantity }) => ({
           productId: product.id,
           quantity,
@@ -83,7 +85,8 @@ export default function NewOrderPage() {
     <div className="flex flex-col h-full">
       <h3 className="text-sm font-semibold text-gray-400 mb-4">Resumen del pedido</h3>
 
-      <div className="mb-4">
+      {/* Mesa */}
+      <div className="mb-3">
         <label className="block text-xs text-gray-500 mb-1">Número de mesa (opcional)</label>
         <input
           type="number" value={tableNumber}
@@ -93,9 +96,22 @@ export default function NewOrderPage() {
         />
       </div>
 
+      {/* Notas */}
+      <div className="mb-4">
+        <label className="block text-xs text-gray-500 mb-1">Notas para cocina (opcional)</label>
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="Ej: sin cebolla, bien cocido..."
+          rows={2}
+          className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-amber-500 resize-none"
+        />
+      </div>
+
+      {/* Items */}
       <div className="flex-1 space-y-2 mb-4 min-h-[80px] overflow-y-auto">
         {cartItems.length === 0 ? (
-          <p className="text-gray-600 text-sm text-center py-8">Selecciona productos</p>
+          <p className="text-gray-600 text-sm text-center py-6">Selecciona productos</p>
         ) : (
           cartItems.map(({ product, quantity }) => (
             <div key={product.id} className="flex items-center gap-2">
@@ -115,6 +131,7 @@ export default function NewOrderPage() {
         )}
       </div>
 
+      {/* Total */}
       <div className="border-t border-gray-800 pt-4 mb-4">
         <div className="flex justify-between items-center">
           <span className="text-gray-400 text-sm">Total</span>
@@ -249,7 +266,7 @@ export default function NewOrderPage() {
       {cartOpen && (
         <div className="md:hidden fixed inset-0 z-50 flex items-end">
           <div className="absolute inset-0 bg-black/60" onClick={() => setCartOpen(false)} />
-          <div className="relative bg-gray-900 border-t border-gray-800 rounded-t-2xl w-full p-6 max-h-[85vh] overflow-y-auto z-10">
+          <div className="relative bg-gray-900 border-t border-gray-800 rounded-t-2xl w-full p-6 max-h-[90vh] overflow-y-auto z-10">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-white font-semibold">Carrito</h3>
               <button onClick={() => setCartOpen(false)} className="text-gray-500 hover:text-white text-2xl leading-none">×</button>

@@ -14,8 +14,8 @@ export default function KitchenPage() {
   const { data: orders,    loading, refetch }          = useOrders({ status: "PENDING" });
   const { data: preparing, refetch: refetchPreparing } = useOrders({ status: "PREPARING" });
 
-  const audioCtxRef    = useRef(null);
-  const audioUnlocked  = useRef(false);
+  const audioCtxRef   = useRef(null);
+  const audioUnlocked = useRef(false);
   const [soundReady, setSoundReady] = useState(false);
 
   // Desbloquea audio en primer toque
@@ -71,7 +71,6 @@ export default function KitchenPage() {
       }
       const ctx = audioCtxRef.current;
       ctx.resume().then(() => {
-        // Tono 1
         const osc1  = ctx.createOscillator();
         const gain1 = ctx.createGain();
         osc1.connect(gain1);
@@ -82,7 +81,6 @@ export default function KitchenPage() {
         osc1.start(ctx.currentTime);
         osc1.stop(ctx.currentTime + 0.3);
 
-        // Tono 2
         const osc2  = ctx.createOscillator();
         const gain2 = ctx.createGain();
         osc2.connect(gain2);
@@ -140,14 +138,12 @@ export default function KitchenPage() {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => { refetch(); refetchPreparing(); }}
-            className="flex items-center gap-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 px-4 py-2 rounded-lg text-sm"
-          >
-            <span>↻</span> Actualizar
-          </button>
-        </div>
+        <button
+          onClick={() => { refetch(); refetchPreparing(); }}
+          className="flex items-center gap-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 px-4 py-2 rounded-lg text-sm"
+        >
+          <span>↻</span> Actualizar
+        </button>
       </div>
 
       {/* Pedidos */}
@@ -163,7 +159,7 @@ export default function KitchenPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {allOrders.map((order) => {
             const st = STATUS_LABELS[order.status];
-            const isPending = order.status === "PENDING";
+            const isPending  = order.status === "PENDING";
             const minutesAgo = Math.floor((Date.now() - new Date(order.createdAt)) / 60000);
 
             return (
@@ -191,6 +187,14 @@ export default function KitchenPage() {
                   </div>
                 </div>
 
+                {/* Notas del mesero */}
+                {order.notes && (
+                  <div className="bg-yellow-900/30 border border-yellow-800 rounded-lg px-3 py-2">
+                    <p className="text-yellow-300 text-xs">📝 {order.notes}</p>
+                  </div>
+                )}
+
+                {/* Items */}
                 <ul className="space-y-1.5 flex-1">
                   {order.items.map((item) => (
                     <li key={item.id} className="flex items-center gap-2">
@@ -218,7 +222,7 @@ export default function KitchenPage() {
         </div>
       )}
 
-      {/* Botón activar sonido — solo aparece si no está activado */}
+      {/* Botón activar sonido */}
       {!soundReady && (
         <button
           onClick={activateSound}

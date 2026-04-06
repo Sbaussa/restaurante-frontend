@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useOrders } from "../hooks/useData";
 import { socket } from "../utils/socket";
@@ -11,18 +11,40 @@ const STATUS_LABELS = {
 
 export default function KitchenPage() {
   const navigate = useNavigate();
-  const { data: orders,    loading, refetch }            = useOrders({ status: "PENDING" });
-  const { data: preparing, refetch: refetchPreparing }   = useOrders({ status: "PREPARING" });
-  const audioRef = useRef(null);
+  const { data: orders,    loading, refetch }          = useOrders({ status: "PENDING" });
+  const { data: preparing, refetch: refetchPreparing } = useOrders({ status: "PREPARING" });
 
+  const audioCtxRef    = useRef(null);
+  const audioUnlocked  = useRef(false);
+  const [soundReady, setSoundReady] = useState(false);
+
+  // Desbloquea audio en primer toque
   useEffect(() => {
-    // Auto-refresh cada 20 segundos
+    const unlock = () => {
+      if (audioUnlocked.current) return;
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      audioCtxRef.current.resume().then(() => {
+        audioUnlocked.current = true;
+        setSoundReady(true);
+      });
+    };
+    document.addEventListener("touchstart", unlock, { once: true });
+    document.addEventListener("click",      unlock, { once: true });
+    return () => {
+      document.removeEventListener("touchstart", unlock);
+      document.removeEventListener("click",      unlock);
+    };
+  }, []);
+
+  // Socket + auto-refresh
+  useEffect(() => {
     const id = setInterval(() => {
       refetch();
       refetchPreparing();
     }, 20000);
 
-    // Socket — actualiza y suena cuando llega pedido nuevo
     socket.connect();
     socket.on("order:new", () => {
       refetch();
@@ -44,17 +66,45 @@ export default function KitchenPage() {
 
   const playAlert = () => {
     try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.frequency.value = 880;
-      gain.gain.setValueAtTime(0.3, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
-      osc.start(ctx.currentTime);
-      osc.stop(ctx.currentTime + 0.5);
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      const ctx = audioCtxRef.current;
+      ctx.resume().then(() => {
+        // Tono 1
+        const osc1  = ctx.createOscillator();
+        const gain1 = ctx.createGain();
+        osc1.connect(gain1);
+        gain1.connect(ctx.destination);
+        osc1.frequency.value = 880;
+        gain1.gain.setValueAtTime(0.4, ctx.currentTime);
+        gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+        osc1.start(ctx.currentTime);
+        osc1.stop(ctx.currentTime + 0.3);
+
+        // Tono 2
+        const osc2  = ctx.createOscillator();
+        const gain2 = ctx.createGain();
+        osc2.connect(gain2);
+        gain2.connect(ctx.destination);
+        osc2.frequency.value = 1100;
+        gain2.gain.setValueAtTime(0.4, ctx.currentTime + 0.35);
+        gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.65);
+        osc2.start(ctx.currentTime + 0.35);
+        osc2.stop(ctx.currentTime + 0.65);
+      });
     } catch {}
+  };
+
+  const activateSound = () => {
+    if (!audioCtxRef.current) {
+      audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    audioCtxRef.current.resume().then(() => {
+      audioUnlocked.current = true;
+      setSoundReady(true);
+      playAlert();
+    });
   };
 
   const advance = async (orderId, nextStatus) => {
@@ -68,12 +118,13 @@ export default function KitchenPage() {
   };
 
   const allOrders = [
-    ...(orders   || []).map((o) => ({ ...o, status: "PENDING" })),
-    ...(preparing|| []).map((o) => ({ ...o, status: "PREPARING" })),
+    ...(orders    || []).map((o) => ({ ...o, status: "PENDING" })),
+    ...(preparing || []).map((o) => ({ ...o, status: "PREPARING" })),
   ].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 
   return (
     <div className="min-h-screen bg-gray-950 p-6">
+      {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-4">
           <button
@@ -89,14 +140,17 @@ export default function KitchenPage() {
             </p>
           </div>
         </div>
-        <button
-          onClick={() => { refetch(); refetchPreparing(); }}
-          className="flex items-center gap-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 px-4 py-2 rounded-lg text-sm"
-        >
-          <span>↻</span> Actualizar
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => { refetch(); refetchPreparing(); }}
+            className="flex items-center gap-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 px-4 py-2 rounded-lg text-sm"
+          >
+            <span>↻</span> Actualizar
+          </button>
+        </div>
       </div>
 
+      {/* Pedidos */}
       {loading ? (
         <p className="text-gray-500 animate-pulse text-center py-20">Cargando pedidos...</p>
       ) : allOrders.length === 0 ? (
@@ -125,7 +179,9 @@ export default function KitchenPage() {
                   </div>
                   <div className="text-right">
                     <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
-                      isPending ? "bg-yellow-900/50 text-yellow-400" : "bg-blue-900/50 text-blue-400"
+                      isPending
+                        ? "bg-yellow-900/50 text-yellow-400"
+                        : "bg-blue-900/50 text-blue-400"
                     }`}>
                       {st.label}
                     </span>
@@ -160,6 +216,16 @@ export default function KitchenPage() {
             );
           })}
         </div>
+      )}
+
+      {/* Botón activar sonido — solo aparece si no está activado */}
+      {!soundReady && (
+        <button
+          onClick={activateSound}
+          className="fixed bottom-6 right-6 bg-green-600 hover:bg-green-500 text-white font-bold px-4 py-3 rounded-xl shadow-xl z-50 flex items-center gap-2 animate-pulse"
+        >
+          🔔 Activar sonido
+        </button>
       )}
     </div>
   );

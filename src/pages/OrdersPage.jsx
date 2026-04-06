@@ -25,11 +25,9 @@ function PaymentModal({ order, onConfirm, onClose }) {
   const [method, setMethod] = useState(null);
   const [cashGiven, setCashGiven] = useState("");
 
-  const change = method === "EFECTIVO" && cashGiven
-    ? Number(cashGiven) - order.total
-    : null;
-
-  const canConfirm = method && (method !== "EFECTIVO" || (cashGiven && Number(cashGiven) >= order.total));
+  const canConfirm = method && (
+    method !== "EFECTIVO" || (cashGiven && Number(cashGiven) >= order.total)
+  );
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -38,13 +36,15 @@ function PaymentModal({ order, onConfirm, onClose }) {
         <div className="flex items-center justify-between p-6 border-b border-gray-800">
           <div>
             <h3 className="text-white font-semibold">Método de pago</h3>
-            <p className="text-gray-500 text-xs mt-0.5">Pedido #{order.id} · ${order.total.toLocaleString()}</p>
+            <p className="text-gray-500 text-xs mt-0.5">
+              Pedido #{order.id} · ${order.total.toLocaleString()}
+            </p>
           </div>
           <button onClick={onClose} className="text-gray-500 hover:text-white text-xl leading-none">×</button>
         </div>
 
         <div className="p-6 space-y-4">
-          {/* Métodos de pago */}
+          {/* Métodos */}
           <div className="grid grid-cols-3 gap-2">
             {[
               { key: "EFECTIVO",      icon: "💵", label: "Efectivo" },
@@ -66,11 +66,13 @@ function PaymentModal({ order, onConfirm, onClose }) {
             ))}
           </div>
 
-          {/* Campo de efectivo */}
+          {/* Efectivo */}
           {method === "EFECTIVO" && (
             <div className="space-y-3">
               <div>
-                <label className="block text-xs text-gray-500 mb-1">¿Cuánto entregó el cliente?</label>
+                <label className="block text-xs text-gray-500 mb-1">
+                  ¿Cuánto entregó el cliente?
+                </label>
                 <input
                   type="number"
                   value={cashGiven}
@@ -98,7 +100,6 @@ function PaymentModal({ order, onConfirm, onClose }) {
             </div>
           )}
 
-          {/* Botón confirmar */}
           <button
             onClick={() => canConfirm && onConfirm({
               method,
@@ -124,7 +125,6 @@ export default function OrdersPage() {
   const [updating, setUpdating] = useState(null);
   const [cancelling, setCancelling] = useState(null);
   const [paymentOrder, setPaymentOrder] = useState(null);
-  const [paidOrders, setPaidOrders] = useState({}); // { orderId: paymentInfo }
 
   const filter = {
     ...(statusFilter ? { status: statusFilter } : {}),
@@ -138,7 +138,6 @@ export default function OrdersPage() {
     const next = NEXT_STATUS[currentStatus];
     if (!next) return;
 
-    // Si el siguiente estado es DELIVERED, mostrar modal de pago
     if (next === "DELIVERED") {
       const order = orders.find((o) => o.id === orderId);
       setPaymentOrder(order);
@@ -159,9 +158,14 @@ export default function OrdersPage() {
   const handlePaymentConfirm = async (paymentInfo) => {
     setUpdating(paymentOrder.id);
     try {
+      // Avanza estado
       await api.patch(`/orders/${paymentOrder.id}/status`, { status: "DELIVERED" });
-      // Guardar pago en memoria para el ticket
-      setPaidOrders((prev) => ({ ...prev, [paymentOrder.id]: paymentInfo }));
+      // Guarda pago en la base de datos
+      await api.patch(`/orders/${paymentOrder.id}/payment`, {
+        paymentMethod: paymentInfo.method,
+        cashGiven:     paymentInfo.cashGiven,
+        cashChange:    paymentInfo.change,
+      });
       refetch();
     } catch {
       alert("Error al confirmar el pago");
@@ -319,7 +323,11 @@ export default function OrdersPage() {
                     <button
                       onClick={() => printReceipt({
                         ...order,
-                        payment: paidOrders[order.id] || null,
+                        payment: order.paymentMethod ? {
+                          method:    order.paymentMethod,
+                          cashGiven: order.cashGiven,
+                          change:    order.cashChange,
+                        } : null,
                       })}
                       className="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 text-xs font-medium px-3 py-2 rounded-lg transition-colors"
                       title="Imprimir factura"
@@ -343,20 +351,3 @@ export default function OrdersPage() {
     </div>
   );
 }
-const handlePaymentConfirm = async (paymentInfo) => {
-  setUpdating(paymentOrder.id);
-  try {
-    await api.patch(`/orders/${paymentOrder.id}/status`, { status: "DELIVERED" });
-    setPaidOrders((prev) => {
-      const next = { ...prev, [paymentOrder.id]: paymentInfo };
-      console.log("paidOrders guardado:", next); // ← agrega esto
-      return next;
-    });
-    refetch();
-  } catch {
-    alert("Error al confirmar el pago");
-  } finally {
-    setUpdating(null);
-    setPaymentOrder(null);
-  }
-};

@@ -20,6 +20,103 @@ const NEXT_STATUS = {
 
 const TODAY = new Date().toISOString().split("T")[0];
 
+// ── Modal de pago ─────────────────────────────────────────
+function PaymentModal({ order, onConfirm, onClose }) {
+  const [method, setMethod] = useState(null);
+  const [cashGiven, setCashGiven] = useState("");
+
+  const change = method === "EFECTIVO" && cashGiven
+    ? Number(cashGiven) - order.total
+    : null;
+
+  const canConfirm = method && (method !== "EFECTIVO" || (cashGiven && Number(cashGiven) >= order.total));
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-sm shadow-2xl">
+        <div className="flex items-center justify-between p-6 border-b border-gray-800">
+          <div>
+            <h3 className="text-white font-semibold">Método de pago</h3>
+            <p className="text-gray-500 text-xs mt-0.5">Pedido #{order.id} · ${order.total.toLocaleString()}</p>
+          </div>
+          <button onClick={onClose} className="text-gray-500 hover:text-white text-xl leading-none">×</button>
+        </div>
+
+        <div className="p-6 space-y-4">
+          {/* Métodos de pago */}
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { key: "EFECTIVO",      icon: "💵", label: "Efectivo" },
+              { key: "TRANSFERENCIA", icon: "📲", label: "Transferencia" },
+              { key: "TARJETA",       icon: "💳", label: "Tarjeta" },
+            ].map(({ key, icon, label }) => (
+              <button
+                key={key}
+                onClick={() => { setMethod(key); setCashGiven(""); }}
+                className={`flex flex-col items-center gap-2 p-4 rounded-xl border transition-all ${
+                  method === key
+                    ? "bg-amber-500/20 border-amber-500 text-amber-400"
+                    : "bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-600"
+                }`}
+              >
+                <span className="text-2xl">{icon}</span>
+                <span className="text-xs font-medium">{label}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Campo de efectivo */}
+          {method === "EFECTIVO" && (
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">¿Cuánto entregó el cliente?</label>
+                <input
+                  type="number"
+                  value={cashGiven}
+                  onChange={(e) => setCashGiven(e.target.value)}
+                  placeholder={`Mínimo $${order.total.toLocaleString()}`}
+                  autoFocus
+                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              {/* Cambio */}
+              {cashGiven && Number(cashGiven) >= order.total && (
+                <div className="bg-green-900/20 border border-green-800 rounded-lg px-4 py-3 flex justify-between items-center">
+                  <span className="text-green-400 text-sm font-medium">Cambio</span>
+                  <span className="text-green-400 font-bold text-lg">
+                    ${(Number(cashGiven) - order.total).toLocaleString()}
+                  </span>
+                </div>
+              )}
+
+              {cashGiven && Number(cashGiven) < order.total && (
+                <div className="bg-red-900/20 border border-red-900 rounded-lg px-4 py-3">
+                  <span className="text-red-400 text-sm">Monto insuficiente</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Botón confirmar */}
+          <button
+            onClick={() => canConfirm && onConfirm({
+              method,
+              cashGiven: method === "EFECTIVO" ? Number(cashGiven) : null,
+              change: method === "EFECTIVO" ? Number(cashGiven) - order.total : null,
+            })}
+            disabled={!canConfirm}
+            className="w-full bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-gray-900 font-bold py-3 rounded-xl transition-colors"
+          >
+            Confirmar y entregar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function OrdersPage() {
   const location = useLocation();
   const [refreshToken] = useState(() => location.state?.refresh ? Date.now() : null);
@@ -27,6 +124,7 @@ export default function OrdersPage() {
   const [dateFilter, setDateFilter] = useState(TODAY);
   const [updating, setUpdating] = useState(null);
   const [cancelling, setCancelling] = useState(null);
+  const [paymentOrder, setPaymentOrder] = useState(null); // orden pendiente de pago
 
   const filter = {
     ...(statusFilter ? { status: statusFilter } : {}),
@@ -39,6 +137,14 @@ export default function OrdersPage() {
   const advanceStatus = async (orderId, currentStatus) => {
     const next = NEXT_STATUS[currentStatus];
     if (!next) return;
+
+    // Si el siguiente estado es DELIVERED, mostrar modal de pago
+    if (next === "DELIVERED") {
+      const order = orders.find((o) => o.id === orderId);
+      setPaymentOrder(order);
+      return;
+    }
+  
     setUpdating(orderId);
     try {
       await api.patch(`/orders/${orderId}/status`, { status: next });
@@ -47,6 +153,19 @@ export default function OrdersPage() {
       alert("Error al actualizar el estado");
     } finally {
       setUpdating(null);
+    }
+  };
+
+  const handlePaymentConfirm = async (paymentInfo) => {
+    setUpdating(paymentOrder.id);
+    try {
+      await api.patch(`/orders/${paymentOrder.id}/status`, { status: "DELIVERED" });
+      refetch();
+    } catch {
+      alert("Error al confirmar el pago");
+    } finally {
+      setUpdating(null);
+      setPaymentOrder(null);
     }
   };
 
@@ -65,6 +184,15 @@ export default function OrdersPage() {
 
   return (
     <div className="p-4 md:p-8">
+      {/* Modal de pago */}
+      {paymentOrder && (
+        <PaymentModal
+          order={paymentOrder}
+          onConfirm={handlePaymentConfirm}
+          onClose={() => setPaymentOrder(null)}
+        />
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between mb-4 md:mb-6">
         <div>
@@ -81,7 +209,6 @@ export default function OrdersPage() {
 
       {/* Filtros */}
       <div className="flex flex-col gap-3 mb-4 md:mb-6">
-        {/* Estados */}
         <div className="flex gap-1.5 flex-wrap">
           {[null, "PENDING", "PREPARING", "READY", "DELIVERED", "CANCELLED"].map((s) => (
             <button
@@ -98,7 +225,6 @@ export default function OrdersPage() {
           ))}
         </div>
 
-        {/* Fecha */}
         <div className="flex items-center gap-2 flex-wrap">
           <input
             type="date" value={dateFilter}
@@ -138,7 +264,6 @@ export default function OrdersPage() {
                   order.status === "CANCELLED" ? "opacity-50 border-gray-800" : "border-gray-800"
                 }`}
               >
-                {/* Fila superior */}
                 <div className="flex items-start justify-between gap-2 mb-2">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-white font-semibold text-sm">Pedido #{order.id}</span>
@@ -154,7 +279,6 @@ export default function OrdersPage() {
                   </p>
                 </div>
 
-                {/* Items */}
                 <p className="text-gray-500 text-xs mb-1 line-clamp-2">
                   {order.items.map((i) => `${i.quantity}x ${i.product.name}`).join(", ")}
                 </p>
@@ -162,15 +286,22 @@ export default function OrdersPage() {
                   {new Date(order.createdAt).toLocaleTimeString("es-CO")} · {order.user?.name}
                 </p>
 
-                {/* Botones */}
                 <div className="flex gap-2 flex-wrap">
                   {canAdvance && (
                     <button
                       onClick={() => advanceStatus(order.id, order.status)}
                       disabled={updating === order.id}
-                      className="flex-1 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-white text-xs font-medium px-3 py-2 rounded-lg transition-colors disabled:opacity-50"
+                      className={`flex-1 text-xs font-medium px-3 py-2 rounded-lg transition-colors disabled:opacity-50 ${
+                        NEXT_STATUS[order.status] === "DELIVERED"
+                          ? "bg-amber-500 hover:bg-amber-400 text-gray-900 font-bold"
+                          : "bg-gray-800 hover:bg-gray-700 border border-gray-700 text-white"
+                      }`}
                     >
-                      {updating === order.id ? "..." : `→ ${STATUS_LABELS[NEXT_STATUS[order.status]].label}`}
+                      {updating === order.id
+                        ? "..."
+                        : NEXT_STATUS[order.status] === "DELIVERED"
+                        ? "💰 Cobrar y entregar"
+                        : `→ ${STATUS_LABELS[NEXT_STATUS[order.status]].label}`}
                     </button>
                   )}
                   {canCancel && (

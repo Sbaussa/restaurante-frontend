@@ -343,3 +343,20 @@ export default function OrdersPage() {
     </div>
   );
 }
+const handlePaymentConfirm = async (paymentInfo) => {
+  setUpdating(paymentOrder.id);
+  try {
+    await api.patch(`/orders/${paymentOrder.id}/status`, { status: "DELIVERED" });
+    setPaidOrders((prev) => {
+      const next = { ...prev, [paymentOrder.id]: paymentInfo };
+      console.log("paidOrders guardado:", next); // ← agrega esto
+      return next;
+    });
+    refetch();
+  } catch {
+    alert("Error al confirmar el pago");
+  } finally {
+    setUpdating(null);
+    setPaymentOrder(null);
+  }
+};

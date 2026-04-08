@@ -3,14 +3,16 @@ import { useUsers } from "../hooks/useData";
 import api from "../utils/api";
 import { useAuth } from "../context/AuthContext";
 
-const ROLES = ["ADMIN", "CASHIER", "KITCHEN"];
+const ROLES = ["ADMIN", "CASHIER", "KITCHEN", "MESERO"];
+
 const ROLE_LABELS = {
   ADMIN:   { label: "Admin",  color: "text-amber-400 bg-amber-900/30 border-amber-800" },
   CASHIER: { label: "Cajero", color: "text-blue-400 bg-blue-900/30 border-blue-800" },
   KITCHEN: { label: "Cocina", color: "text-green-400 bg-green-900/30 border-green-800" },
+  MESERO:  { label: "Mesero", color: "text-purple-400 bg-purple-900/30 border-purple-800" },
 };
 
-const EMPTY_FORM = { name: "", email: "", password: "", role: "CASHIER" };
+const EMPTY_FORM = { name: "", email: "", password: "", role: "MESERO" };
 
 function Modal({ title, onClose, children }) {
   return (
@@ -38,7 +40,7 @@ export default function UsersPage() {
   const inputClass = "w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-500";
 
   const openCreate = () => { setForm(EMPTY_FORM); setSelected(null); setModal("create"); };
-  const openEdit = (u) => { setSelected(u); setForm({ name: u.name, email: u.email, password: "", role: u.role }); setModal("edit"); };
+  const openEdit   = (u) => { setSelected(u); setForm({ name: u.name, email: u.email, password: "", role: u.role }); setModal("edit"); };
   const openDelete = (u) => { setSelected(u); setModal("delete"); };
   const closeModal = () => { setModal(null); setSelected(null); setForm(EMPTY_FORM); };
 
@@ -113,8 +115,8 @@ export default function UsersPage() {
                     </td>
                     <td className="p-4 text-gray-400">{u.email}</td>
                     <td className="p-4 text-center">
-                      <span className={`text-xs px-2 py-1 rounded-full font-medium border ${ROLE_LABELS[u.role].color}`}>
-                        {ROLE_LABELS[u.role].label}
+                      <span className={`text-xs px-2 py-1 rounded-full font-medium border ${ROLE_LABELS[u.role]?.color || "text-gray-400 bg-gray-800 border-gray-700"}`}>
+                        {ROLE_LABELS[u.role]?.label || u.role}
                       </span>
                     </td>
                     <td className="p-4 text-gray-500 text-xs">{new Date(u.createdAt).toLocaleDateString("es-CO")}</td>
@@ -149,8 +151,8 @@ export default function UsersPage() {
                       <p className="text-gray-500 text-xs truncate">{u.email}</p>
                     </div>
                   </div>
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium border flex-shrink-0 ${ROLE_LABELS[u.role].color}`}>
-                    {ROLE_LABELS[u.role].label}
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium border flex-shrink-0 ${ROLE_LABELS[u.role]?.color || "text-gray-400 bg-gray-800 border-gray-700"}`}>
+                    {ROLE_LABELS[u.role]?.label || u.role}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
@@ -169,6 +171,7 @@ export default function UsersPage() {
         </>
       )}
 
+      {/* Modal crear/editar */}
       {(modal === "create" || modal === "edit") && (
         <Modal title={modal === "edit" ? `Editando: ${selected.name}` : "Nuevo usuario"} onClose={closeModal}>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -193,7 +196,9 @@ export default function UsersPage() {
               <label className="block text-xs text-gray-500 mb-1">Rol</label>
               <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}
                 className={inputClass + " cursor-pointer"}>
-                {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABELS[r].label}</option>)}
+                {ROLES.map((r) => (
+                  <option key={r} value={r}>{ROLE_LABELS[r]?.label || r}</option>
+                ))}
               </select>
             </div>
             <div className="flex gap-3 pt-1">
@@ -210,6 +215,7 @@ export default function UsersPage() {
         </Modal>
       )}
 
+      {/* Modal eliminar */}
       {modal === "delete" && (
         <Modal title="Eliminar usuario" onClose={closeModal}>
           <div className="space-y-4">

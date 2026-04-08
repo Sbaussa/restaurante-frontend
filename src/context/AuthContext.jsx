@@ -7,7 +7,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Al cargar la app, verificar si hay token guardado
+
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token) {

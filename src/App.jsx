@@ -1,15 +1,15 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import Layout from "./components/layout/Layout";
-import LoginPage       from "./pages/LoginPage";
-import DashboardPage   from "./pages/DashboardPage";
-import OrdersPage      from "./pages/OrdersPage";
-import ProductsPage    from "./pages/ProductsPage";
-import NewOrderPage    from "./pages/NewOrderPage";
-import KitchenPage     from "./pages/KitchenPage";
-import CategoriesPage  from "./pages/CategoriesPage";
-import UsersPage       from "./pages/UsersPage";
-import TablesPage      from "./pages/TablesPage";
+import LoginPage        from "./pages/LoginPage";
+import DashboardPage    from "./pages/DashboardPage";
+import OrdersPage       from "./pages/OrdersPage";
+import ProductsPage     from "./pages/ProductsPage";
+import NewOrderPage     from "./pages/NewOrderPage";
+import KitchenPage      from "./pages/KitchenPage";
+import CategoriesPage   from "./pages/CategoriesPage";
+import UsersPage        from "./pages/UsersPage";
+import TablesPage       from "./pages/TablesPage";
 import CashRegisterPage from "./pages/CashRegisterPage";
 
 function PrivateRoute({ children }) {
@@ -31,6 +31,7 @@ function App() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
 
+          {/* Vista cocina — sin sidebar */}
           <Route path="/kitchen" element={
             <PrivateRoute>
               <RoleRoute roles={["ADMIN", "KITCHEN"]}>
@@ -39,16 +40,29 @@ function App() {
             </PrivateRoute>
           } />
 
+          {/* App principal — con sidebar */}
           <Route path="/" element={
             <PrivateRoute><Layout /></PrivateRoute>
           }>
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard"  element={<DashboardPage />} />
+            <Route path="tables"     element={<TablesPage />} />
             <Route path="orders"     element={<OrdersPage />} />
             <Route path="orders/new" element={<NewOrderPage />} />
-            <Route path="products"   element={<ProductsPage />} />
-            <Route path="tables"     element={<TablesPage />} />
-            <Route path="cash"       element={<CashRegisterPage />} />
+
+            {/* Solo ADMIN y CASHIER */}
+            <Route path="products" element={
+              <RoleRoute roles={["ADMIN", "CASHIER"]}>
+                <ProductsPage />
+              </RoleRoute>
+            } />
+            <Route path="cash" element={
+              <RoleRoute roles={["ADMIN", "CASHIER"]}>
+                <CashRegisterPage />
+              </RoleRoute>
+            } />
+
+            {/* Solo ADMIN */}
             <Route path="categories" element={
               <RoleRoute roles={["ADMIN"]}><CategoriesPage /></RoleRoute>
             } />

@@ -1,6 +1,7 @@
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useState } from "react";
+import NotificationPrompt from "../NotificationPrompt";
 
 export default function Layout() {
   const { user, logout } = useAuth();
@@ -74,7 +75,7 @@ export default function Layout() {
 
   return (
     <div className="flex h-screen bg-gray-950 text-white">
-      {/* Sidebar desktop */}
+      <NotificationPrompt />  
       <aside className="hidden md:flex w-64 bg-gray-900 border-r border-gray-800 flex-col flex-shrink-0">
         <SidebarContent />
       </aside>

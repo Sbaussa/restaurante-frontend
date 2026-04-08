@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import api from "../utils/api";
-import { subscribeToPush, unsubscribeFromPush } from "../utils/pushNotifications";
+import { unsubscribeFromPush } from "../utils/pushNotifications";
 
 const AuthContext = createContext(null);
 
@@ -13,10 +13,7 @@ export function AuthProvider({ children }) {
     if (token) {
       api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
       api.get("/auth/me")
-        .then((res) => {
-          setUser(res.data);
-          subscribeToPush().catch(() => {});
-        })
+        .then((res) => setUser(res.data))
         .catch(() => localStorage.removeItem("token"))
         .finally(() => setLoading(false));
     } else {
@@ -29,13 +26,13 @@ export function AuthProvider({ children }) {
     localStorage.setItem("token", data.token);
     api.defaults.headers.common["Authorization"] = `Bearer ${data.token}`;
     setUser(data.user);
-    subscribeToPush().catch(() => {});
     return data.user;
   };
 
   const logout = () => {
     unsubscribeFromPush().catch(() => {});
     localStorage.removeItem("token");
+    localStorage.removeItem("notif_asked");
     delete api.defaults.headers.common["Authorization"];
     setUser(null);
   };

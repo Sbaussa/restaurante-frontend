@@ -3,7 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { useOrders } from "../hooks/useData";
 import { useAuth } from "../context/AuthContext";
 import api from "../utils/api";
-import { printReceipt } from "../utils/printReceipt";
+import { printReceipt, printKitchenTicket } from "../utils/printReceipt";
 
 const STATUS_LABELS = {
   PENDING:   { label: "Pendiente",  color: "text-yellow-400 bg-yellow-900/30 border-yellow-800" },
@@ -268,7 +268,7 @@ export default function OrdersPage() {
                   <p className="text-yellow-400/70 text-xs mt-0.5 mb-1">📝 {order.notes}</p>
                 )}
 
-                <p className="text-xs text-gray-600 mb-3">
+                <p className="text-xs text-gray-600 mb-1">
                   {new Date(order.createdAt).toLocaleTimeString("es-CO")}
                 </p>
                 {order.user?.name && (
@@ -301,19 +301,27 @@ export default function OrdersPage() {
                     </button>
                   )}
                   {order.status !== "CANCELLED" && (
-                    <button
-                      onClick={() => printReceipt({
-                        ...order,
-                        payment: order.paymentMethod ? {
-                          method:    order.paymentMethod,
-                          cashGiven: order.cashGiven,
-                          change:    order.cashChange,
-                        } : null,
-                      })}
-                      className="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 text-xs font-medium px-3 py-2 rounded-lg transition-colors"
-                      title="Imprimir factura">
-                      🖨️
-                    </button>
+                    <>
+                      <button
+                        onClick={() => printKitchenTicket(order)}
+                        className="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 text-xs font-medium px-3 py-2 rounded-lg transition-colors"
+                        title="Imprimir ticket cocina">
+                        🍳
+                      </button>
+                      <button
+                        onClick={() => printReceipt({
+                          ...order,
+                          payment: order.paymentMethod ? {
+                            method:    order.paymentMethod,
+                            cashGiven: order.cashGiven,
+                            change:    order.cashChange,
+                          } : null,
+                        })}
+                        className="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 text-xs font-medium px-3 py-2 rounded-lg transition-colors"
+                        title="Imprimir factura">
+                        🖨️
+                      </button>
+                    </>
                   )}
                 </div>
               </div>

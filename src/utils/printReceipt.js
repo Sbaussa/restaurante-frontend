@@ -21,3 +21,23 @@ export async function printReceipt(order) {
     alert(err.message || "Error al imprimir");
   }
 }
+
+export async function printKitchenTicket(order) {
+  try {
+    const response = await fetch(`${LOCAL_URL}/api/print/kitchen`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": api.defaults.headers.common["Authorization"],
+      },
+      body: JSON.stringify({ order }),
+    });
+
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.message || "Error al imprimir ticket de cocina");
+    }
+  } catch (err) {
+    alert(err.message || "Error al imprimir ticket de cocina");
+  }
+}

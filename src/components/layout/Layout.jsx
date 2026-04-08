@@ -1,7 +1,7 @@
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useState } from "react";
-import NotificationPrompt from "./NotificationPrompt";
+import NotificationPrompt from "../NotificationPrompt";
 
 export default function Layout() {
   const { user, logout } = useAuth();

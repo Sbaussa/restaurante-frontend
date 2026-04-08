@@ -4,6 +4,7 @@ import api from "../utils/api";
 import { useAuth } from "../context/AuthContext";
 
 const ROLES = ["ADMIN", "CASHIER", "KITCHEN", "MESERO"];
+const PROTECTED_EMAIL = "admin@baussas.com";
 
 const ROLE_LABELS = {
   ADMIN:   { label: "Admin",  color: "text-amber-400 bg-amber-900/30 border-amber-800" },
@@ -38,6 +39,8 @@ export default function UsersPage() {
   const [saving, setSaving] = useState(false);
 
   const inputClass = "w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-500";
+
+  const isProtected = (u) => u.email === PROTECTED_EMAIL;
 
   const openCreate = () => { setForm(EMPTY_FORM); setSelected(null); setModal("create"); };
   const openEdit   = (u) => { setSelected(u); setForm({ name: u.name, email: u.email, password: "", role: u.role }); setModal("edit"); };
@@ -110,6 +113,7 @@ export default function UsersPage() {
                         </div>
                         <span className="text-white font-medium">
                           {u.name} {u.id === me?.id && <span className="text-xs text-gray-600">(tú)</span>}
+                          {isProtected(u) && <span className="text-xs text-amber-500 ml-1">🔒</span>}
                         </span>
                       </div>
                     </td>
@@ -122,8 +126,9 @@ export default function UsersPage() {
                     <td className="p-4 text-gray-500 text-xs">{new Date(u.createdAt).toLocaleDateString("es-CO")}</td>
                     <td className="p-4 text-right">
                       <div className="flex items-center justify-end gap-3">
-                        <button onClick={() => openEdit(u)} className="text-xs text-gray-500 hover:text-amber-400">Editar</button>
-                        <button onClick={() => openDelete(u)} disabled={u.id === me?.id}
+                        <button onClick={() => openEdit(u)} disabled={isProtected(u)}
+                          className="text-xs text-gray-500 hover:text-amber-400 disabled:opacity-30 disabled:cursor-not-allowed">Editar</button>
+                        <button onClick={() => openDelete(u)} disabled={u.id === me?.id || isProtected(u)}
                           className="text-xs text-gray-500 hover:text-red-400 disabled:opacity-30 disabled:cursor-not-allowed">
                           Eliminar
                         </button>
@@ -147,6 +152,7 @@ export default function UsersPage() {
                     <div className="min-w-0">
                       <p className="text-white font-medium text-sm truncate">
                         {u.name} {u.id === me?.id && <span className="text-xs text-gray-600">(tú)</span>}
+                        {isProtected(u) && <span className="text-xs text-amber-500 ml-1">🔒</span>}
                       </p>
                       <p className="text-gray-500 text-xs truncate">{u.email}</p>
                     </div>
@@ -158,9 +164,10 @@ export default function UsersPage() {
                 <div className="flex items-center justify-between">
                   <p className="text-gray-600 text-xs">{new Date(u.createdAt).toLocaleDateString("es-CO")}</p>
                   <div className="flex gap-3">
-                    <button onClick={() => openEdit(u)} className="text-xs text-gray-500 hover:text-amber-400">Editar</button>
-                    <button onClick={() => openDelete(u)} disabled={u.id === me?.id}
-                      className="text-xs text-gray-500 hover:text-red-400 disabled:opacity-30">
+                    <button onClick={() => openEdit(u)} disabled={isProtected(u)}
+                      className="text-xs text-gray-500 hover:text-amber-400 disabled:opacity-30 disabled:cursor-not-allowed">Editar</button>
+                    <button onClick={() => openDelete(u)} disabled={u.id === me?.id || isProtected(u)}
+                      className="text-xs text-gray-500 hover:text-red-400 disabled:opacity-30 disabled:cursor-not-allowed">
                       Eliminar
                     </button>
                   </div>

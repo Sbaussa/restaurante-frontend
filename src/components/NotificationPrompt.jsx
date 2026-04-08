@@ -5,12 +5,11 @@ export default function NotificationPrompt() {
   const [show, setShow] = useState(false);
 
   useEffect(() => {
-    // Muestra el modal si nunca ha respondido y el navegador soporta notificaciones
-    if (!("Notification" in window)) return;
-    if (Notification.permission === "default" && !localStorage.getItem("notif_asked")) {
-      setTimeout(() => setShow(true), 1500);
-    }
-  }, []);
+  if (!("Notification" in window)) return;
+  if (!localStorage.getItem("notif_asked")) {
+    setTimeout(() => setShow(true), 1500);
+  }
+}, []);
 
   const handleActivar = async () => {
     localStorage.setItem("notif_asked", "1");

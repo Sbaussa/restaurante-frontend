@@ -24,6 +24,23 @@ export default function Layout() {
 
   const visibleItems = navItems.filter((item) => item.roles.includes(user?.role));
 
+  // Desbloquea AudioContext en primer clic del usuario
+  useEffect(() => {
+    const unlock = () => {
+      if (!window._audioCtxUnlocked) {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        ctx.resume();
+        window._audioCtxUnlocked = true;
+      }
+    };
+    document.addEventListener("click",      unlock, { once: true });
+    document.addEventListener("touchstart", unlock, { once: true });
+    return () => {
+      document.removeEventListener("click",      unlock);
+      document.removeEventListener("touchstart", unlock);
+    };
+  }, []);
+
   // Alerta sonora cuando el pedido del mesero está listo
   useEffect(() => {
     if (!user) return;
@@ -121,7 +138,6 @@ export default function Layout() {
 
       {/* Contenido principal */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Top bar móvil */}
         <header className="md:hidden flex items-center gap-3 px-4 py-3 bg-gray-900 border-b border-gray-800 flex-shrink-0">
           <button onClick={() => setSidebarOpen(true)} className="text-gray-400 hover:text-white p-1">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">

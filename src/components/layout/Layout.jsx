@@ -3,7 +3,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useState, useEffect } from "react";
 import NotificationPrompt from "../NotificationPrompt";
 import { socket } from "../../utils/socket";
-import { playAlertSoundDirect } from "../../utils/pushNotifications";
+import { playAlertSoundDirect, unlockAudio } from "../../utils/pushNotifications";
 
 export default function Layout() {
   const { user, logout } = useAuth();
@@ -24,15 +24,9 @@ export default function Layout() {
 
   const visibleItems = navItems.filter((item) => item.roles.includes(user?.role));
 
-  // Desbloquea AudioContext en primer clic del usuario
+  // Desbloquea AudioContext en primer clic/toque
   useEffect(() => {
-    const unlock = () => {
-      if (!window._audioCtxUnlocked) {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        ctx.resume();
-        window._audioCtxUnlocked = true;
-      }
-    };
+    const unlock = () => unlockAudio();
     document.addEventListener("click",      unlock, { once: true });
     document.addEventListener("touchstart", unlock, { once: true });
     return () => {
@@ -91,8 +85,7 @@ export default function Layout() {
                 isActive
                   ? "bg-amber-500 text-gray-900"
                   : "text-gray-400 hover:bg-gray-800 hover:text-white"
-              }`
-            }>
+            }`}>
             <span>{icon}</span>
             {label}
           </NavLink>

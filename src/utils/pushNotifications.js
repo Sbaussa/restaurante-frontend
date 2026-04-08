@@ -9,16 +9,24 @@ function urlBase64ToUint8Array(base64String) {
   return Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
 }
 
-// Contexto de audio global reutilizable
+// Contexto de audio compartido
 let _audioCtx = null;
+
+export function unlockAudio() {
+  if (!_audioCtx) {
+    _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  _audioCtx.resume();
+}
 
 export function playAlertSoundDirect() {
   try {
     if (!_audioCtx) {
       _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     }
-    const ctx = _audioCtx;
-    ctx.resume().then(() => {
+    _audioCtx.resume().then(() => {
+      const ctx = _audioCtx;
+
       const osc1 = ctx.createOscillator();
       const g1   = ctx.createGain();
       osc1.connect(g1); g1.connect(ctx.destination);

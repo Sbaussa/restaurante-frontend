@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import api from "../utils/api";
+import { subscribeToPush, unsubscribeFromPush } from "../utils/pushNotifications";
 
 const AuthContext = createContext(null);
 
@@ -7,13 +8,18 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token) {
       api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
       api.get("/auth/me")
-        .then((res) => setUser(res.data))
+        .then((res) => {
+          setUser(res.data);
+          // Suscribe a push si el rol recibe notificaciones
+          if (["CASHIER", "MESERO", "ADMIN", "KITCHEN"].includes(res.data.role)) {
+            subscribeToPush().catch(() => {});
+          }
+        })
         .catch(() => localStorage.removeItem("token"))
         .finally(() => setLoading(false));
     } else {
@@ -26,10 +32,15 @@ export function AuthProvider({ children }) {
     localStorage.setItem("token", data.token);
     api.defaults.headers.common["Authorization"] = `Bearer ${data.token}`;
     setUser(data.user);
+    // Suscribe a push después del login
+    if (["CASHIER", "MESERO", "ADMIN", "KITCHEN"].includes(data.user.role)) {
+      subscribeToPush().catch(() => {});
+    }
     return data.user;
   };
 
   const logout = () => {
+    unsubscribeFromPush().catch(() => {});
     localStorage.removeItem("token");
     delete api.defaults.headers.common["Authorization"];
     setUser(null);
@@ -42,5 +53,4 @@ export function AuthProvider({ children }) {
   );
 }
 
-// Hook para usar el contexto fácilmente
 export const useAuth = () => useContext(AuthContext);

@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { useFetch } from "../hooks/useData";
 
-const TODAY = new Date().toISOString().split("T")[0];
+const TODAY = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
+  .toISOString()
+  .split("T")[0];
 
 const PAYMENT_LABELS = {
   EFECTIVO:      "Efectivo",

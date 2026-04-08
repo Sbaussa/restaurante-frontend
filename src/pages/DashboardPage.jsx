@@ -5,7 +5,9 @@ import {
   ResponsiveContainer, PieChart, Pie, Cell, Legend,
 } from "recharts";
 
-const TODAY = new Date().toISOString().split("T")[0];
+const TODAY = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
+  .toISOString()
+  .split("T")[0];
 
 const STATUS_COLORS = {
   PENDING:   "text-yellow-400 bg-yellow-900/30 border-yellow-800",

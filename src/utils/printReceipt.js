@@ -1,8 +1,10 @@
 import api from "./api";
 
+const LOCAL_URL = import.meta.env.VITE_LOCAL_PRINT_URL || "http://localhost:3002";
+
 export async function printReceipt(order) {
   try {
-    const response = await fetch("http://192.168.1.100:3002/api/print", {
+    const response = await fetch(`${LOCAL_URL}/api/print`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

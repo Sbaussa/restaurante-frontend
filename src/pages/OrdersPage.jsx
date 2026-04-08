@@ -269,8 +269,13 @@ export default function OrdersPage() {
                 )}
 
                 <p className="text-xs text-gray-600 mb-3">
-                  {new Date(order.createdAt).toLocaleTimeString("es-CO")} · {order.user?.name}
+                  {new Date(order.createdAt).toLocaleTimeString("es-CO")}
                 </p>
+                {order.user?.name && (
+                  <p className="text-xs text-gray-400 mb-3">
+                    👤 Atendió: <span className="text-white font-medium">{order.user.name}</span>
+                  </p>
+                )}
 
                 <div className="flex gap-2 flex-wrap">
                   {canAdvance && (

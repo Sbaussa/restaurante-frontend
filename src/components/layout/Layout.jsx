@@ -1,7 +1,9 @@
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import NotificationPrompt from "../NotificationPrompt";
+import { socket } from "../../utils/socket";
+import { playAlertSoundDirect } from "../../utils/pushNotifications";
 
 export default function Layout() {
   const { user, logout } = useAuth();
@@ -21,6 +23,31 @@ export default function Layout() {
   ];
 
   const visibleItems = navItems.filter((item) => item.roles.includes(user?.role));
+
+  // Alerta sonora cuando el pedido del mesero está listo
+  useEffect(() => {
+    if (!user) return;
+    socket.connect();
+
+    socket.on("order:updated", (order) => {
+      if (order.status === "READY" && order.userId === user.id) {
+        playAlertSoundDirect();
+        if (Notification.permission === "granted") {
+          new Notification(`🔔 Pedido #${order.id} listo`, {
+            body: order.tableNumber
+              ? `Mesa ${order.tableNumber} — listo para entregar`
+              : "Para llevar — listo para entregar",
+            icon: "/iconoweb.ico",
+          });
+        }
+      }
+    });
+
+    return () => {
+      socket.off("order:updated");
+      socket.disconnect();
+    };
+  }, [user]);
 
   const handleLogout = () => {
     logout();
@@ -75,7 +102,9 @@ export default function Layout() {
 
   return (
     <div className="flex h-screen bg-gray-950 text-white">
-      <NotificationPrompt />  
+      <NotificationPrompt />
+
+      {/* Sidebar desktop */}
       <aside className="hidden md:flex w-64 bg-gray-900 border-r border-gray-800 flex-col flex-shrink-0">
         <SidebarContent />
       </aside>

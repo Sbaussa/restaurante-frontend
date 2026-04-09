@@ -28,7 +28,7 @@ const TRANSFER_INFO = {
   banco:   "Nequi",
   tipo:    "Ahorros",
   numero:  "311 2397748",
-  nombre:  "Claudia Márquez",
+  nombre:  "Claudia Márquez Jiménez",
 };
 // ──────────────────────────────────────────────────────────────────────────
 

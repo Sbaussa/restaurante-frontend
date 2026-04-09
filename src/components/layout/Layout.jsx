@@ -11,13 +11,13 @@ export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const navItems = [
-    { to: "/dashboard",  icon: "📊", label: "Dashboard",   roles: ["ADMIN", "CASHIER", "KITCHEN", "MESERO"] },
+    { to: "/dashboard",  icon: "📊", label: "Dashboard",   roles: ["ADMIN"] },
     { to: "/tables",     icon: "🪑", label: "Mesas",        roles: ["ADMIN", "CASHIER", "MESERO"] },
     { to: "/orders",     icon: "🧾", label: "Pedidos",      roles: ["ADMIN", "CASHIER", "MESERO"], end: true },
     { to: "/orders/new", icon: "➕", label: "Nuevo Pedido", roles: ["ADMIN", "CASHIER", "MESERO"] },
     { to: "/products",   icon: "🍔", label: "Productos",    roles: ["ADMIN", "CASHIER"] },
     { to: "/categories", icon: "🏷️", label: "Categorías",  roles: ["ADMIN"] },
-    { to: "/cash",       icon: "💰", label: "Caja",         roles: ["ADMIN", "CASHIER"] },
+    { to: "/cash",       icon: "💰", label: "Caja",         roles: ["ADMIN"] },
     { to: "/users",      icon: "👥", label: "Usuarios",     roles: ["ADMIN"] },
     { to: "/kitchen",    icon: "🍳", label: "Cocina",       roles: ["ADMIN", "KITCHEN"] },
   ];

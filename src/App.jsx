@@ -20,7 +20,7 @@ function PrivateRoute({ children }) {
 
 function RoleRoute({ children, roles }) {
   const { user } = useAuth();
-  if (!roles.includes(user?.role)) return <Navigate to="/dashboard" replace />;
+  if (!roles.includes(user?.role)) return <Navigate to="/tables" replace />;
   return children;
 }
 
@@ -44,11 +44,21 @@ function App() {
           <Route path="/" element={
             <PrivateRoute><Layout /></PrivateRoute>
           }>
-            <Route index element={<Navigate to="/dashboard" replace />} />
-            <Route path="dashboard"  element={<DashboardPage />} />
-            <Route path="tables"     element={<TablesPage />} />
-            <Route path="orders"     element={<OrdersPage />} />
-            <Route path="orders/new" element={<NewOrderPage />} />
+            <Route index element={<Navigate to="/tables" replace />} />
+
+            {/* Solo ADMIN */}
+            <Route path="dashboard" element={
+              <RoleRoute roles={["ADMIN"]}><DashboardPage /></RoleRoute>
+            } />
+            <Route path="cash" element={
+              <RoleRoute roles={["ADMIN"]}><CashRegisterPage /></RoleRoute>
+            } />
+            <Route path="categories" element={
+              <RoleRoute roles={["ADMIN"]}><CategoriesPage /></RoleRoute>
+            } />
+            <Route path="users" element={
+              <RoleRoute roles={["ADMIN"]}><UsersPage /></RoleRoute>
+            } />
 
             {/* Solo ADMIN y CASHIER */}
             <Route path="products" element={
@@ -56,22 +66,14 @@ function App() {
                 <ProductsPage />
               </RoleRoute>
             } />
-            <Route path="cash" element={
-              <RoleRoute roles={["ADMIN", "CASHIER"]}>
-                <CashRegisterPage />
-              </RoleRoute>
-            } />
 
-            {/* Solo ADMIN */}
-            <Route path="categories" element={
-              <RoleRoute roles={["ADMIN"]}><CategoriesPage /></RoleRoute>
-            } />
-            <Route path="users" element={
-              <RoleRoute roles={["ADMIN"]}><UsersPage /></RoleRoute>
-            } />
+            {/* ADMIN, CASHIER y MESERO */}
+            <Route path="tables"     element={<TablesPage />} />
+            <Route path="orders"     element={<OrdersPage />} />
+            <Route path="orders/new" element={<NewOrderPage />} />
           </Route>
 
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          <Route path="*" element={<Navigate to="/tables" replace />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>
@@ -79,3 +81,5 @@ function App() {
 }
 
 export default App;
+
+

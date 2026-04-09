@@ -4,7 +4,7 @@ import { useOrders } from "../hooks/useData";
 import { useAuth } from "../context/AuthContext";
 import api from "../utils/api";
 import { printReceipt, printKitchenTicket } from "../utils/printReceipt";
-import qrTransferencia from "/public/Baancolombiabaraton.png";
+import qrTransferencia from "/public/Bancolombiabaraton.png";
 
 const STATUS_LABELS = {
   PENDING:   { label: "Pendiente",  color: "text-yellow-400 bg-yellow-900/30 border-yellow-800" },
@@ -26,7 +26,7 @@ const TODAY = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
 const TRANSFER_INFO = {
   qrImage: qrTransferencia,  
   banco:   "Nequi",
-  tipo:    "",
+  tipo:    "Ahorros",
   numero:  "311 2397748",
   nombre:  "Claudia Márquez",
 };

@@ -22,6 +22,14 @@ const NEXT_STATUS = {
 const TODAY = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
   .toISOString().split("T")[0];
 
+const TRANSFER_INFO = {
+  qrImage: "public/Bancolombiabaraton.png",
+  banco:   "Bancolombia",
+  tipo:    "Ahorros",
+  numero:  "123-456789-00",
+  nombre:  "Mi Restaurante",
+};
+
 function PaymentModal({ order, onConfirm, onClose }) {
   const [method, setMethod] = useState(null);
   const [cashGiven, setCashGiven] = useState("");
@@ -45,6 +53,7 @@ function PaymentModal({ order, onConfirm, onClose }) {
         </div>
 
         <div className="p-6 space-y-4">
+          {/* Botones de método de pago */}
           <div className="grid grid-cols-3 gap-2">
             {[
               { key: "EFECTIVO",      icon: "💵", label: "Efectivo" },
@@ -64,6 +73,7 @@ function PaymentModal({ order, onConfirm, onClose }) {
             ))}
           </div>
 
+          {/* ── Panel de Efectivo ── */}
           {method === "EFECTIVO" && (
             <div className="space-y-3">
               <div>
@@ -88,6 +98,45 @@ function PaymentModal({ order, onConfirm, onClose }) {
                   <span className="text-red-400 text-sm">Monto insuficiente</span>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* ── Panel de Transferencia ── */}
+          {method === "TRANSFERENCIA" && (
+            <div className="border border-gray-700 rounded-xl overflow-hidden">
+              <div className="bg-gray-800 px-4 py-2.5 border-b border-gray-700">
+                <p className="text-xs text-gray-400 font-medium">Datos para transferir</p>
+              </div>
+              <div className="p-4 flex flex-col items-center gap-3">
+                {TRANSFER_INFO.qrImage && (
+                  <div className="bg-white rounded-lg p-2">
+                    <img
+                      src={TRANSFER_INFO.qrImage}
+                      alt="QR de transferencia"
+                      className="w-32 h-32 object-contain"
+                      onError={(e) => { e.currentTarget.style.display = "none"; }}
+                    />
+                  </div>
+                )}
+                <div className="w-full text-xs text-gray-400 space-y-1.5">
+                  <div className="flex justify-between">
+                    <span>Banco</span>
+                    <span className="text-white font-medium">{TRANSFER_INFO.banco}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Tipo de cuenta</span>
+                    <span className="text-white font-medium">{TRANSFER_INFO.tipo}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Número</span>
+                    <span className="text-white font-medium">{TRANSFER_INFO.numero}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>A nombre de</span>
+                    <span className="text-white font-medium">{TRANSFER_INFO.nombre}</span>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 

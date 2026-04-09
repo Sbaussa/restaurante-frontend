@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useOrders } from "../hooks/useData";
 import { useAuth } from "../context/AuthContext";
 import api from "../utils/api";
 import { printReceipt, printKitchenTicket } from "../utils/printReceipt";
+import qrTransferencia from "/public/Bancolombiabaraton.png";
 
 const STATUS_LABELS = {
   PENDING:   { label: "Pendiente",  color: "text-yellow-400 bg-yellow-900/30 border-yellow-800" },
@@ -23,12 +24,13 @@ const TODAY = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
   .toISOString().split("T")[0];
 
 const TRANSFER_INFO = {
-  qrImage: "public/Bancolombiabaraton.png",
+  qrImage: qrTransferencia,  
   banco:   "Bancolombia",
   tipo:    "Ahorros",
-  numero:  "123-456789-00",
+  numero:  "",
   nombre:  "Mi Restaurante",
 };
+// ──────────────────────────────────────────────────────────────────────────
 
 function PaymentModal({ order, onConfirm, onClose }) {
   const [method, setMethod] = useState(null);
@@ -113,7 +115,7 @@ function PaymentModal({ order, onConfirm, onClose }) {
                     <img
                       src={TRANSFER_INFO.qrImage}
                       alt="QR de transferencia"
-                      className="w-32 h-32 object-contain"
+                      className="w-48 h-48 object-contain"
                       onError={(e) => { e.currentTarget.style.display = "none"; }}
                     />
                   </div>
@@ -127,10 +129,12 @@ function PaymentModal({ order, onConfirm, onClose }) {
                     <span>Tipo de cuenta</span>
                     <span className="text-white font-medium">{TRANSFER_INFO.tipo}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Número</span>
-                    <span className="text-white font-medium">{TRANSFER_INFO.numero}</span>
-                  </div>
+                  {TRANSFER_INFO.numero && (
+                    <div className="flex justify-between">
+                      <span>Número</span>
+                      <span className="text-white font-medium">{TRANSFER_INFO.numero}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between">
                     <span>A nombre de</span>
                     <span className="text-white font-medium">{TRANSFER_INFO.nombre}</span>

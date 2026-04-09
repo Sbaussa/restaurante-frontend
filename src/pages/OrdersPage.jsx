@@ -4,7 +4,7 @@ import { useOrders } from "../hooks/useData";
 import { useAuth } from "../context/AuthContext";
 import api from "../utils/api";
 import { printReceipt, printKitchenTicket } from "../utils/printReceipt";
-import qrTransferencia from "/public/Bancolombiabaraton.png";
+import qrTransferencia from "/public/nequibaraton.png";
 
 const STATUS_LABELS = {
   PENDING:   { label: "Pendiente",  color: "text-yellow-400 bg-yellow-900/30 border-yellow-800" },

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { useOrders } from "../hooks/useData";
+import { useOrders, useProducts } from "../hooks/useData";
 import { useAuth } from "../context/AuthContext";
 import api from "../utils/api";
 import { printReceipt, printKitchenTicket } from "../utils/printReceipt";
@@ -24,16 +24,163 @@ const TODAY = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
   .toISOString().split("T")[0];
 
 const TRANSFER_INFO = {
-  qrImage: qrTransferencia,  
+  qrImage: qrTransferencia,
   banco:   "Nequi",
   tipo:    "Ahorros",
   numero:  "311 2397748",
   nombre:  "Claudia Márquez Jiménez",
 };
-// ──────────────────────────────────────────────────────────────────────────
 
+// ── Modal de edición ──────────────────────────────────────
+function EditOrderModal({ order, onClose, onSaved }) {
+  const { data: products, loading } = useProducts({ available: true });
+  const [cart, setCart] = useState(() => {
+    const c = {};
+    order.items.forEach((i) => { c[i.product.id] = i.quantity; });
+    return c;
+  });
+  const [notes, setNotes]   = useState(order.notes || "");
+  const [saving, setSaving] = useState(false);
+  const [search, setSearch] = useState("");
+
+  const cartItems = Object.entries(cart).map(([id, qty]) => {
+    const product = products?.find((p) => p.id === Number(id));
+    return { product, quantity: qty };
+  }).filter((i) => i.product);
+
+  const total = cartItems.reduce((sum, { product, quantity }) => sum + product.price * quantity, 0);
+
+  const add    = (id) => setCart((p) => ({ ...p, [id]: (p[id] || 0) + 1 }));
+  const remove = (id) => setCart((p) => {
+    const n = { ...p };
+    if (n[id] > 1) n[id]--;
+    else delete n[id];
+    return n;
+  });
+
+  const filtered = products?.filter((p) =>
+    p.name.toLowerCase().includes(search.toLowerCase())
+  ) || [];
+
+  const handleSave = async () => {
+    if (!cartItems.length) return alert("Agrega al menos un producto");
+    setSaving(true);
+    try {
+      await api.patch(`/orders/${order.id}`, {
+        notes: notes || null,
+        items: cartItems.map(({ product, quantity }) => ({
+          productId: product.id,
+          quantity,
+        })),
+      });
+      onSaved();
+      onClose();
+    } catch (err) {
+      alert(err.response?.data?.message || "Error al guardar");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-lg shadow-2xl max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between p-5 border-b border-gray-800">
+          <div>
+            <h3 className="text-white font-semibold">Editar Pedido #{order.id}</h3>
+            <p className="text-gray-500 text-xs mt-0.5">
+              {order.tableNumber ? `Mesa ${order.tableNumber}` : "Para llevar"}
+            </p>
+          </div>
+          <button onClick={onClose} className="text-gray-500 hover:text-white text-xl">×</button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+          {/* Notas */}
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Notas para cocina</label>
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)}
+              rows={2} placeholder="Sin cebolla, bien cocido..."
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-amber-500 resize-none"
+            />
+          </div>
+
+          {/* Carrito actual */}
+          {cartItems.length > 0 && (
+            <div>
+              <label className="block text-xs text-gray-500 mb-2">Productos en el pedido</label>
+              <div className="space-y-2">
+                {cartItems.map(({ product, quantity }) => (
+                  <div key={product.id} className="flex items-center justify-between bg-gray-800 rounded-lg px-3 py-2">
+                    <span className="text-white text-sm truncate flex-1">{product.name}</span>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <button onClick={() => remove(product.id)}
+                        className="w-6 h-6 rounded bg-gray-700 text-white text-xs hover:bg-gray-600">−</button>
+                      <span className="text-white text-sm w-4 text-center">{quantity}</span>
+                      <button onClick={() => add(product.id)}
+                        className="w-6 h-6 rounded bg-gray-700 text-white text-xs hover:bg-gray-600">+</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Buscar y agregar productos */}
+          <div>
+            <label className="block text-xs text-gray-500 mb-2">Agregar productos</label>
+            <input type="text" value={search} onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar producto..."
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-amber-500 mb-2"
+            />
+            {loading ? (
+              <p className="text-gray-600 text-sm">Cargando...</p>
+            ) : (
+              <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+                {filtered.map((product) => (
+                  <button key={product.id} onClick={() => add(product.id)}
+                    className={`text-left p-2.5 rounded-lg border text-xs transition-all ${
+                      cart[product.id]
+                        ? "bg-amber-900/20 border-amber-600"
+                        : "bg-gray-800 border-gray-700 hover:border-gray-600"
+                    }`}>
+                    <p className="text-white font-medium truncate">{product.name}</p>
+                    <p className="text-amber-400">${product.price.toLocaleString()}</p>
+                    {cart[product.id] && (
+                      <p className="text-amber-300 text-xs">En carrito: {cart[product.id]}</p>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="p-5 border-t border-gray-800">
+          <div className="flex justify-between items-center mb-3">
+            <span className="text-gray-400 text-sm">Total</span>
+            <span className="text-amber-400 font-bold text-lg">${total.toLocaleString()}</span>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={handleSave} disabled={saving || !cartItems.length}
+              className="flex-1 bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-gray-900 font-bold py-2.5 rounded-xl text-sm">
+              {saving ? "Guardando..." : "Guardar cambios"}
+            </button>
+            <button onClick={onClose}
+              className="px-4 bg-gray-800 hover:bg-gray-700 text-gray-400 rounded-xl text-sm">
+              Cancelar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Modal de pago ─────────────────────────────────────────
 function PaymentModal({ order, onConfirm, onClose }) {
-  const [method, setMethod] = useState(null);
+  const [method, setMethod]     = useState(null);
   const [cashGiven, setCashGiven] = useState("");
 
   const canConfirm = method && (
@@ -55,7 +202,6 @@ function PaymentModal({ order, onConfirm, onClose }) {
         </div>
 
         <div className="p-6 space-y-4">
-          {/* Botones de método de pago */}
           <div className="grid grid-cols-3 gap-2">
             {[
               { key: "EFECTIVO",      icon: "💵", label: "Efectivo" },
@@ -75,7 +221,6 @@ function PaymentModal({ order, onConfirm, onClose }) {
             ))}
           </div>
 
-          {/* ── Panel de Efectivo ── */}
           {method === "EFECTIVO" && (
             <div className="space-y-3">
               <div>
@@ -103,7 +248,6 @@ function PaymentModal({ order, onConfirm, onClose }) {
             </div>
           )}
 
-          {/* ── Panel de Transferencia ── */}
           {method === "TRANSFERENCIA" && (
             <div className="border border-gray-700 rounded-xl overflow-hidden">
               <div className="bg-gray-800 px-4 py-2.5 border-b border-gray-700">
@@ -112,9 +256,7 @@ function PaymentModal({ order, onConfirm, onClose }) {
               <div className="p-4 flex flex-col items-center gap-3">
                 {TRANSFER_INFO.qrImage && (
                   <div className="bg-white rounded-lg p-2">
-                    <img
-                      src={TRANSFER_INFO.qrImage}
-                      alt="QR de transferencia"
+                    <img src={TRANSFER_INFO.qrImage} alt="QR de transferencia"
                       className="w-48 h-48 object-contain"
                       onError={(e) => { e.currentTarget.style.display = "none"; }}
                     />
@@ -160,6 +302,7 @@ function PaymentModal({ order, onConfirm, onClose }) {
   );
 }
 
+// ── Página principal ──────────────────────────────────────
 export default function OrdersPage() {
   const location = useLocation();
   const { user } = useAuth();
@@ -169,6 +312,7 @@ export default function OrdersPage() {
   const [updating, setUpdating]         = useState(null);
   const [cancelling, setCancelling]     = useState(null);
   const [paymentOrder, setPaymentOrder] = useState(null);
+  const [editOrder, setEditOrder]       = useState(null);
 
   const filter = {
     ...(statusFilter ? { status: statusFilter } : {}),
@@ -238,6 +382,14 @@ export default function OrdersPage() {
         />
       )}
 
+      {editOrder && (
+        <EditOrderModal
+          order={editOrder}
+          onClose={() => setEditOrder(null)}
+          onSaved={refetch}
+        />
+      )}
+
       <div className="flex items-center justify-between mb-4 md:mb-6">
         <div>
           <h2 className="text-xl md:text-2xl font-bold text-white">Pedidos</h2>
@@ -292,6 +444,7 @@ export default function OrdersPage() {
             const st         = STATUS_LABELS[order.status];
             const canAdvance = !!NEXT_STATUS[order.status];
             const canCancel  = ["PENDING", "PREPARING"].includes(order.status);
+            const canEdit    = ["PENDING", "PREPARING", "READY"].includes(order.status);
 
             return (
               <div key={order.id}
@@ -345,6 +498,12 @@ export default function OrdersPage() {
                         : NEXT_STATUS[order.status] === "DELIVERED"
                         ? "💰 Cobrar y entregar"
                         : `→ ${STATUS_LABELS[NEXT_STATUS[order.status]].label}`}
+                    </button>
+                  )}
+                  {canEdit && (
+                    <button onClick={() => setEditOrder(order)}
+                      className="bg-blue-900/20 hover:bg-blue-900/40 border border-blue-900 text-blue-400 text-xs font-medium px-3 py-2 rounded-lg transition-colors">
+                      ✏️
                     </button>
                   )}
                   {canCancel && (

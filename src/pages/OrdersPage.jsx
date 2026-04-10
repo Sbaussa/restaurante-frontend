@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useOrders, useProducts } from "../hooks/useData";
 import { useAuth } from "../context/AuthContext";
@@ -20,6 +20,8 @@ const NEXT_STATUS = {
   READY:     "DELIVERED",
 };
 
+
+
 const TODAY = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
   .toISOString().split("T")[0];
 
@@ -31,7 +33,6 @@ const TRANSFER_INFO = {
   nombre:  "Claudia Márquez Jiménez",
 };
 
-// ── Modal de edición ──────────────────────────────────────
 function EditOrderModal({ order, onClose, onSaved }) {
   const { data: products, loading } = useProducts({ available: true });
   const [cart, setCart] = useState(() => {
@@ -314,11 +315,17 @@ export default function OrdersPage() {
   const [paymentOrder, setPaymentOrder] = useState(null);
   const [editOrder, setEditOrder]       = useState(null);
 
+  useEffect(() => {
+    const id = setInterval(() => refetch(), 30000);
+    return () => clearInterval(id);
+  }, []);
+
   const filter = {
     ...(statusFilter ? { status: statusFilter } : {}),
     ...(dateFilter   ? { date: dateFilter }     : {}),
     ...(refreshToken ? { _t: refreshToken }     : {}),
   };
+
 
   const { data: orders, loading, error, refetch } = useOrders(filter);
 

@@ -479,7 +479,7 @@ export default function OrdersPage() {
       {/* Sugerencias de búsqueda (solo cuando está vacío) */}
       {!searchQuery && (
         <div className="flex gap-2 flex-wrap mb-4">
-          {["#1", "Mesa 1", "sin cebolla", "hamburguesa"].map((hint) => (
+          {["#1", "Mesa 1", "sin verduras","sin salsa", "perro"].map((hint) => (
             <button
               key={hint}
               onClick={() => setSearchQuery(hint)}

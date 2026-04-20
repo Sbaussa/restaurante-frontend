@@ -5,6 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import api from "../utils/api";
 import { printReceipt, printKitchenTicket } from "../utils/printReceipt";
 import qrTransferencia from "/public/nequibaraton.png";
+import { socket } from "../utils/socket";
 
 const STATUS_LABELS = {
   PENDING:   { label: "Pendiente",  color: "text-yellow-400 bg-yellow-900/30 border-yellow-800" },
@@ -327,8 +328,14 @@ export default function OrdersPage() {
   const [editOrder, setEditOrder]       = useState(null);
 
   useEffect(() => {
-    const id = setInterval(() => refetch(), 30000);
-    return () => clearInterval(id);
+    socket.connect();
+    socket.on("order:new",     () => refetch());
+    socket.on("order:updated", () => refetch());
+    return () => {
+      socket.off("order:new");
+      socket.off("order:updated");
+      socket.disconnect();
+    };
   }, []);
 
   const filter = {

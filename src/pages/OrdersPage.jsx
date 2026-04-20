@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useOrders, useProducts } from "../hooks/useData";
 import { useAuth } from "../context/AuthContext";
@@ -20,8 +20,6 @@ const NEXT_STATUS = {
   READY:     "DELIVERED",
 };
 
-
-
 const TODAY = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
   .toISOString().split("T")[0];
 
@@ -32,6 +30,22 @@ const TRANSFER_INFO = {
   numero:  "311 2397748",
   nombre:  "Claudia Márquez Jiménez",
 };
+
+// ── Highlight matching text ───────────────────────────────
+function Highlight({ text, query }) {
+  if (!query || !text) return <>{text}</>;
+  const idx = String(text).toLowerCase().indexOf(query.toLowerCase());
+  if (idx === -1) return <>{text}</>;
+  return (
+    <>
+      {String(text).slice(0, idx)}
+      <mark className="bg-amber-400/30 text-amber-300 rounded px-0.5">
+        {String(text).slice(idx, idx + query.length)}
+      </mark>
+      {String(text).slice(idx + query.length)}
+    </>
+  );
+}
 
 function EditOrderModal({ order, onClose, onSaved }) {
   const { data: products, loading } = useProducts({ available: true });
@@ -98,7 +112,6 @@ function EditOrderModal({ order, onClose, onSaved }) {
         </div>
 
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
-          {/* Notas */}
           <div>
             <label className="block text-xs text-gray-500 mb-1">Notas para cocina</label>
             <textarea value={notes} onChange={(e) => setNotes(e.target.value)}
@@ -107,7 +120,6 @@ function EditOrderModal({ order, onClose, onSaved }) {
             />
           </div>
 
-          {/* Carrito actual */}
           {cartItems.length > 0 && (
             <div>
               <label className="block text-xs text-gray-500 mb-2">Productos en el pedido</label>
@@ -128,7 +140,6 @@ function EditOrderModal({ order, onClose, onSaved }) {
             </div>
           )}
 
-          {/* Buscar y agregar productos */}
           <div>
             <label className="block text-xs text-gray-500 mb-2">Agregar productos</label>
             <input type="text" value={search} onChange={(e) => setSearch(e.target.value)}
@@ -179,9 +190,8 @@ function EditOrderModal({ order, onClose, onSaved }) {
   );
 }
 
-// ── Modal de pago ─────────────────────────────────────────
 function PaymentModal({ order, onConfirm, onClose }) {
-  const [method, setMethod]     = useState(null);
+  const [method, setMethod]       = useState(null);
   const [cashGiven, setCashGiven] = useState("");
 
   const canConfirm = method && (
@@ -310,6 +320,7 @@ export default function OrdersPage() {
   const [refreshToken] = useState(() => location.state?.refresh ? Date.now() : null);
   const [statusFilter, setStatusFilter] = useState(null);
   const [dateFilter, setDateFilter]     = useState(TODAY);
+  const [searchQuery, setSearchQuery]   = useState("");
   const [updating, setUpdating]         = useState(null);
   const [cancelling, setCancelling]     = useState(null);
   const [paymentOrder, setPaymentOrder] = useState(null);
@@ -326,8 +337,32 @@ export default function OrdersPage() {
     ...(refreshToken ? { _t: refreshToken }     : {}),
   };
 
-
   const { data: orders, loading, error, refetch } = useOrders(filter);
+
+  // ── Búsqueda local por #pedido, mesa o notas ──────────
+  const filteredOrders = useMemo(() => {
+    if (!orders) return [];
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return orders;
+
+    return orders.filter((order) => {
+      // Por número de pedido: "#12" o "12"
+      const idMatch = String(order.id).includes(q.replace("#", ""));
+      // Por número de mesa
+      const tableMatch = order.tableNumber
+        ? String(order.tableNumber).toLowerCase().includes(q.replace("mesa", "").trim())
+        : false;
+      // Por notas
+      const notesMatch = order.notes
+        ? order.notes.toLowerCase().includes(q)
+        : false;
+      // Por nombre de producto en los items
+      const itemsMatch = order.items.some((i) =>
+        i.product.name.toLowerCase().includes(q)
+      );
+      return idMatch || tableMatch || notesMatch || itemsMatch;
+    });
+  }, [orders, searchQuery]);
 
   const advanceStatus = async (orderId, currentStatus) => {
     const next = NEXT_STATUS[currentStatus];
@@ -379,6 +414,8 @@ export default function OrdersPage() {
     }
   };
 
+  const isSearching = searchQuery.trim().length > 0;
+
   return (
     <div className="p-4 md:p-8">
       {paymentOrder && (
@@ -400,13 +437,59 @@ export default function OrdersPage() {
       <div className="flex items-center justify-between mb-4 md:mb-6">
         <div>
           <h2 className="text-xl md:text-2xl font-bold text-white">Pedidos</h2>
-          <p className="text-gray-500 text-sm mt-1">{orders?.length || 0} pedidos encontrados</p>
+          <p className="text-gray-500 text-sm mt-1">
+            {isSearching
+              ? `${filteredOrders.length} resultado${filteredOrders.length !== 1 ? "s" : ""} para "${searchQuery}"`
+              : `${orders?.length || 0} pedidos encontrados`
+            }
+          </p>
         </div>
         <Link to="/orders/new"
           className="bg-amber-500 hover:bg-amber-400 text-gray-900 font-bold px-3 py-2 md:px-5 md:py-2.5 rounded-lg transition-colors text-sm">
           + Nuevo
         </Link>
       </div>
+
+      {/* ── Barra de búsqueda ── */}
+      <div className="relative mb-4">
+        <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+          <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+          </svg>
+        </div>
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Buscar por #pedido, mesa, notas o producto..."
+          className="w-full bg-gray-800 border border-gray-700 rounded-xl pl-10 pr-10 py-2.5 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-amber-500 transition-colors"
+        />
+        {searchQuery && (
+          <button
+            onClick={() => setSearchQuery("")}
+            className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-white transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )}
+      </div>
+
+      {/* Sugerencias de búsqueda (solo cuando está vacío) */}
+      {!searchQuery && (
+        <div className="flex gap-2 flex-wrap mb-4">
+          {["#1", "Mesa 1", "sin cebolla", "hamburguesa"].map((hint) => (
+            <button
+              key={hint}
+              onClick={() => setSearchQuery(hint)}
+              className="text-xs text-gray-500 bg-gray-800/60 border border-gray-700 rounded-full px-2.5 py-1 hover:text-amber-400 hover:border-amber-700 transition-colors"
+            >
+              {hint}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Filtros */}
       <div className="flex flex-col gap-3 mb-4 md:mb-6">
@@ -447,25 +530,31 @@ export default function OrdersPage() {
         <p className="text-red-400">{error}</p>
       ) : (
         <div className="space-y-3">
-          {orders?.map((order) => {
+          {filteredOrders.map((order) => {
             const st         = STATUS_LABELS[order.status];
             const canAdvance = !!NEXT_STATUS[order.status];
             const canCancel  = ["PENDING", "PREPARING"].includes(order.status);
             const canEdit    = ["PENDING", "PREPARING", "READY"].includes(order.status);
+            const q          = searchQuery.trim();
 
             return (
               <div key={order.id}
-                className={`bg-gray-900 border rounded-xl p-4 ${
-                  order.status === "CANCELLED" ? "opacity-50 border-gray-800" : "border-gray-800"
+                className={`bg-gray-900 border rounded-xl p-4 transition-all ${
+                  order.status === "CANCELLED" ? "opacity-50 border-gray-800" :
+                  isSearching ? "border-amber-800/50 shadow-amber-900/20 shadow-sm" : "border-gray-800"
                 }`}>
                 <div className="flex items-start justify-between gap-2 mb-2">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-white font-semibold text-sm">Pedido #{order.id}</span>
+                    <span className="text-white font-semibold text-sm">
+                      Pedido #<Highlight text={String(order.id)} query={q.replace("#", "")} />
+                    </span>
                     <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${st.color}`}>
                       {st.label}
                     </span>
                     {order.tableNumber && (
-                      <span className="text-xs text-gray-500">Mesa {order.tableNumber}</span>
+                      <span className="text-xs text-gray-500">
+                        Mesa <Highlight text={String(order.tableNumber)} query={q.replace("mesa", "").trim()} />
+                      </span>
                     )}
                   </div>
                   <p className="text-amber-400 font-bold text-base flex-shrink-0">
@@ -474,11 +563,18 @@ export default function OrdersPage() {
                 </div>
 
                 <p className="text-gray-500 text-xs mb-1 line-clamp-2">
-                  {order.items.map((i) => `${i.quantity}x ${i.product.name}`).join(", ")}
+                  {order.items.map((i, idx) => (
+                    <span key={i.product.id}>
+                      {idx > 0 && ", "}
+                      {i.quantity}x <Highlight text={i.product.name} query={q} />
+                    </span>
+                  ))}
                 </p>
 
                 {order.notes && (
-                  <p className="text-yellow-400/70 text-xs mt-0.5 mb-1">📝 {order.notes}</p>
+                  <p className="text-yellow-400/70 text-xs mt-0.5 mb-1">
+                    📝 <Highlight text={order.notes} query={q} />
+                  </p>
                 )}
 
                 <p className="text-xs text-gray-600 mb-1">
@@ -547,10 +643,24 @@ export default function OrdersPage() {
             );
           })}
 
-          {orders?.length === 0 && (
+          {filteredOrders.length === 0 && !loading && (
             <div className="text-center py-16 text-gray-600">
-              <p className="text-4xl mb-3">🧾</p>
-              <p>No hay pedidos con este filtro.</p>
+              {isSearching ? (
+                <>
+                  <p className="text-4xl mb-3">🔍</p>
+                  <p className="text-gray-500">Sin resultados para <span className="text-amber-400">"{searchQuery}"</span></p>
+                  <p className="text-xs mt-2 text-gray-600">Prueba con el número de pedido, mesa o una nota</p>
+                  <button onClick={() => setSearchQuery("")}
+                    className="mt-3 text-xs text-amber-500 hover:text-amber-400">
+                    Limpiar búsqueda
+                  </button>
+                </>
+              ) : (
+                <>
+                  <p className="text-4xl mb-3">🧾</p>
+                  <p>No hay pedidos con este filtro</p>
+                </>
+              )}
             </div>
           )}
         </div>

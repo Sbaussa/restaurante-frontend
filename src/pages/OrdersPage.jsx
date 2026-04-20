@@ -550,7 +550,7 @@ export default function OrdersPage() {
           {orders?.length === 0 && (
             <div className="text-center py-16 text-gray-600">
               <p className="text-4xl mb-3">🧾</p>
-              <p>No hay pedidos con este filtro</p>
+              <p>No hay pedidos con este filtro.</p>
             </div>
           )}
         </div>

@@ -41,3 +41,4 @@ export async function printKitchenTicket(order) {
     alert(err.message || "Error al imprimir ticket de cocina");
   }
 }
+

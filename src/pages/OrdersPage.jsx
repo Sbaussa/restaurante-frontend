@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useOrders, useProducts } from "../hooks/useData";
 import { useAuth } from "../context/AuthContext";
@@ -327,16 +327,51 @@ export default function OrdersPage() {
   const [paymentOrder, setPaymentOrder] = useState(null);
   const [editOrder, setEditOrder]       = useState(null);
 
+  // Ref para diferir el refetch cuando hay un modal abierto.
+  // Es un ref (no estado) para no causar re-renders extra.
+  const pendingRefresh = useRef(false);
+
+  // ── Socket: bloquea refetch si hay modal abierto ──────
   useEffect(() => {
+    const handleOrderEvent = () => {
+      if (paymentOrder || editOrder) {
+        // Hay un modal activo en ESTE dispositivo → no interrumpir
+        pendingRefresh.current = true;
+      } else {
+        refetch();
+      }
+    };
+
     socket.connect();
-    socket.on("order:new",     () => refetch());
-    socket.on("order:updated", () => refetch());
+    socket.on("order:new",     handleOrderEvent);
+    socket.on("order:updated", handleOrderEvent);
+
     return () => {
-      socket.off("order:new");
-      socket.off("order:updated");
+      socket.off("order:new",     handleOrderEvent);
+      socket.off("order:updated", handleOrderEvent);
       socket.disconnect();
     };
-  }, []);
+  // Se re-suscribe cada vez que cambia el estado de los modales
+  // para que el closure siempre vea el valor actual
+  }, [paymentOrder, editOrder]);
+
+  // Helper: cierra el modal de pago y dispara refetch pendiente si había
+  const closePaymentModal = () => {
+    setPaymentOrder(null);
+    if (pendingRefresh.current) {
+      pendingRefresh.current = false;
+      refetch();
+    }
+  };
+
+  // Helper: cierra el modal de edición y dispara refetch pendiente si había
+  const closeEditModal = () => {
+    setEditOrder(null);
+    if (pendingRefresh.current) {
+      pendingRefresh.current = false;
+      refetch();
+    }
+  };
 
   const filter = {
     ...(statusFilter ? { status: statusFilter } : {}),
@@ -353,17 +388,13 @@ export default function OrdersPage() {
     if (!q) return orders;
 
     return orders.filter((order) => {
-      // Por número de pedido: "#12" o "12"
-      const idMatch = String(order.id).includes(q.replace("#", ""));
-      // Por número de mesa
+      const idMatch    = String(order.id).includes(q.replace("#", ""));
       const tableMatch = order.tableNumber
         ? String(order.tableNumber).toLowerCase().includes(q.replace("mesa", "").trim())
         : false;
-      // Por notas
       const notesMatch = order.notes
         ? order.notes.toLowerCase().includes(q)
         : false;
-      // Por nombre de producto en los items
       const itemsMatch = order.items.some((i) =>
         i.product.name.toLowerCase().includes(q)
       );
@@ -399,6 +430,7 @@ export default function OrdersPage() {
         cashGiven:     paymentInfo.cashGiven,
         cashChange:    paymentInfo.change,
       });
+      pendingRefresh.current = false; // limpiar flag, refetch explícito abajo
       refetch();
     } catch {
       alert("Error al confirmar el pago");
@@ -429,15 +461,18 @@ export default function OrdersPage() {
         <PaymentModal
           order={paymentOrder}
           onConfirm={handlePaymentConfirm}
-          onClose={() => setPaymentOrder(null)}
+          onClose={closePaymentModal}
         />
       )}
 
       {editOrder && (
         <EditOrderModal
           order={editOrder}
-          onClose={() => setEditOrder(null)}
-          onSaved={refetch}
+          onClose={closeEditModal}
+          onSaved={() => {
+            pendingRefresh.current = false;
+            refetch();
+          }}
         />
       )}
 
@@ -486,7 +521,7 @@ export default function OrdersPage() {
       {/* Sugerencias de búsqueda (solo cuando está vacío) */}
       {!searchQuery && (
         <div className="flex gap-2 flex-wrap mb-4">
-          {["#1", "Mesa 1", "sin verduras","sin salsa", "perro"].map((hint) => (
+          {["#1", "Mesa 1", "sin verduras", "sin salsa", "perro"].map((hint) => (
             <button
               key={hint}
               onClick={() => setSearchQuery(hint)}

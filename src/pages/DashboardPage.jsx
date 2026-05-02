@@ -2,12 +2,16 @@ import { useState } from "react";
 import { useDashboardStats, useSalesByHour } from "../hooks/useData";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, PieChart, Pie, Cell, Legend,
+  ResponsiveContainer, PieChart, Pie, Cell,
 } from "recharts";
+import {
+  DollarSign, ShoppingBag, Target, Clock,
+  XCircle, Star, Trophy, CreditCard,
+  TrendingUp, TrendingDown,
+} from "lucide-react";
 
 const TODAY = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
-  .toISOString()
-  .split("T")[0];
+  .toISOString().split("T")[0];
 
 const STATUS_COLORS = {
   PENDING:   "text-yellow-400 bg-yellow-900/30 border-yellow-800",
@@ -22,34 +26,30 @@ const STATUS_LABELS = {
 };
 
 const PAYMENT_COLORS = ["#f59e0b", "#3b82f6", "#10b981", "#a855f7"];
-
 const PAYMENT_LABELS = {
-  EFECTIVO:      "Efectivo",
-  TRANSFERENCIA: "Transferencia",
-  TARJETA:       "Tarjeta",
-  MIXTO:         "Mixto",
+  EFECTIVO: "Efectivo", TRANSFERENCIA: "Transferencia", TARJETA: "Tarjeta", MIXTO: "Mixto",
 };
-
 const PAYMENT_ICONS = {
-  EFECTIVO:      "💵",
-  TRANSFERENCIA: "📲",
-  TARJETA:       "💳",
-  MIXTO:         "🔀",
+  EFECTIVO: "💵", TRANSFERENCIA: "📲", TARJETA: "💳", MIXTO: "🔀",
 };
 
-function StatCard({ icon, label, value, sub, color = "text-amber-400", badge, trend }) {
+// Horas del restaurante: 17h → 2h (siguiente día)
+const RESTAURANT_HOURS = [17,18,19,20,21,22,23,0,1,2];
+
+function StatCard({ Icon, label, value, sub, color = "text-amber-400", badge, trend }) {
   return (
     <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 md:p-5">
       <div className="flex items-center justify-between mb-3">
-        <span className="text-xl">{icon}</span>
+        <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${color} bg-gray-800`}>
+          <Icon size={18} />
+        </div>
         <div className="flex items-center gap-2">
           {trend !== null && trend !== undefined && (
-            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-              trend >= 0
-                ? "text-green-400 bg-green-900/30"
-                : "text-red-400 bg-red-900/30"
+            <span className={`flex items-center gap-0.5 text-xs font-medium px-2 py-0.5 rounded-full ${
+              trend >= 0 ? "text-green-400 bg-green-900/30" : "text-red-400 bg-red-900/30"
             }`}>
-              {trend >= 0 ? "▲" : "▼"} {Math.abs(trend).toFixed(1)}%
+              {trend >= 0 ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
+              {Math.abs(trend).toFixed(1)}%
             </span>
           )}
           <span className={`text-xs font-medium ${color} bg-gray-800 px-2 py-0.5 rounded-full`}>
@@ -66,11 +66,13 @@ function StatCard({ icon, label, value, sub, color = "text-amber-400", badge, tr
 
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload?.length) {
+    const h = Number(label);
+    const display = h === 0 ? "12 AM" : h < 12 ? `${h} AM` : h === 12 ? "12 PM" : `${h - (h > 12 ? 12 : 0)} ${h >= 12 ? "PM" : "AM"}`;
     return (
-      <div className="bg-gray-800 border border-gray-700 rounded-lg p-3 text-sm">
-        <p className="text-gray-400">{`${label}:00 hrs`}</p>
-        <p className="text-amber-400 font-bold">${payload[0].value.toLocaleString()}</p>
-        <p className="text-gray-500">{payload[1]?.value} pedidos</p>
+      <div className="bg-gray-800 border border-gray-700 rounded-lg p-3 text-sm shadow-xl">
+        <p className="text-gray-400 mb-1">{display}</p>
+        <p className="text-amber-400 font-bold">${(payload[0]?.value || 0).toLocaleString()}</p>
+        {payload[1] && <p className="text-gray-500">{payload[1].value} pedidos</p>}
       </div>
     );
   }
@@ -85,9 +87,15 @@ export default function DashboardPage() {
 
   const filters = mode === "day" ? { date } : { from, to };
   const { data: stats, loading: loadingStats } = useDashboardStats(filters);
-  const { data: salesByHour, loading: loadingSales } = useSalesByHour(filters);
+  const { data: salesByHourRaw, loading: loadingSales } = useSalesByHour(filters);
 
   const isToday = mode === "day" && date === TODAY;
+
+  // Filtrar y ordenar solo las horas del restaurante
+  const salesByHour = RESTAURANT_HOURS.map((h) => {
+    const found = salesByHourRaw?.find((r) => Number(r.hour) === h);
+    return found || { hour: h, revenue: 0, orders: 0 };
+  });
 
   const paymentData = stats?.paymentMethods?.map((p, i) => ({
     name:  PAYMENT_LABELS[p.paymentMethod] || p.paymentMethod || "Sin método",
@@ -97,10 +105,16 @@ export default function DashboardPage() {
     color: PAYMENT_COLORS[i % PAYMENT_COLORS.length],
   })) || [];
 
-  // Método más usado (incluyendo MIXTO)
   const topPayment = stats?.paymentMethods?.length
-    ? stats.paymentMethods.sort((a, b) => b._count - a._count)[0]
+    ? [...stats.paymentMethods].sort((a, b) => b._count - a._count)[0]
     : null;
+
+  const hourLabel = (h) => {
+    if (h === 0)  return "12 AM";
+    if (h < 12)   return `${h}h`;
+    if (h === 12) return "12 PM";
+    return `${h}h`;
+  };
 
   return (
     <div className="p-4 md:p-8">
@@ -110,27 +124,23 @@ export default function DashboardPage() {
           <h2 className="text-xl md:text-2xl font-bold text-white">Dashboard</h2>
           <p className="text-gray-500 text-sm mt-1">
             {isToday
-              ? new Date().toLocaleDateString("es-CO", { weekday: "long", year: "numeric", month: "long", day: "numeric" })
+              ? new Date().toLocaleDateString("es-CO", { weekday:"long", year:"numeric", month:"long", day:"numeric" })
               : mode === "day"
-              ? new Date(date + "T12:00:00").toLocaleDateString("es-CO", { weekday: "long", year: "numeric", month: "long", day: "numeric" })
+              ? new Date(date + "T12:00:00").toLocaleDateString("es-CO", { weekday:"long", year:"numeric", month:"long", day:"numeric" })
               : `Del ${from} al ${to}`}
           </p>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-2 flex-wrap">
           <div className="flex bg-gray-900 border border-gray-800 rounded-lg p-1 gap-1 self-start">
-            <button onClick={() => setMode("day")}
-              className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
-                mode === "day" ? "bg-amber-500 text-gray-900" : "text-gray-400 hover:text-white"
-              }`}>
-              Por día
-            </button>
-            <button onClick={() => setMode("range")}
-              className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
-                mode === "range" ? "bg-amber-500 text-gray-900" : "text-gray-400 hover:text-white"
-              }`}>
-              Rango
-            </button>
+            {["day","range"].map((m) => (
+              <button key={m} onClick={() => setMode(m)}
+                className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
+                  mode === m ? "bg-amber-500 text-gray-900" : "text-gray-400 hover:text-white"
+                }`}>
+                {m === "day" ? "Por día" : "Rango"}
+              </button>
+            ))}
           </div>
 
           {mode === "day" ? (
@@ -140,9 +150,7 @@ export default function DashboardPage() {
                 className="bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-500"
               />
               {date !== TODAY && (
-                <button onClick={() => setDate(TODAY)} className="text-xs text-amber-500 hover:text-amber-400">
-                  Hoy
-                </button>
+                <button onClick={() => setDate(TODAY)} className="text-xs text-amber-500 hover:text-amber-400">Hoy</button>
               )}
             </div>
           ) : (
@@ -151,7 +159,7 @@ export default function DashboardPage() {
                 onChange={(e) => setFrom(e.target.value)}
                 className="bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-500"
               />
-              <span className="text-gray-600 text-sm">→</span>
+              <span className="text-gray-600">→</span>
               <input type="date" value={to} min={from} max={TODAY}
                 onChange={(e) => setTo(e.target.value)}
                 className="bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-500"
@@ -167,55 +175,35 @@ export default function DashboardPage() {
         <>
           {/* Tarjetas principales */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6">
-            <StatCard icon="💰" label="Ingresos" color="text-amber-400"
-              value={`$${(stats?.totalRevenue || 0).toLocaleString()}`}
-              trend={stats?.revenueChange}
-            />
-            <StatCard icon="🧾" label="Pedidos" color="text-green-400"
-              value={stats?.totalOrders || 0}
-            />
-            <StatCard icon="🎯" label="Ticket promedio" color="text-blue-400"
-              value={`$${Math.round(stats?.avgTicket || 0).toLocaleString()}`}
-            />
-            <StatCard icon="⏳" label="Pendientes ahora" color="text-orange-400"
-              value={stats?.pendingOrders || 0} badge="AHORA"
-            />
+            <StatCard Icon={DollarSign}   label="Ingresos"        color="text-amber-400"  value={`$${(stats?.totalRevenue || 0).toLocaleString()}`} trend={stats?.revenueChange} />
+            <StatCard Icon={ShoppingBag}  label="Pedidos"         color="text-green-400"  value={stats?.totalOrders || 0} />
+            <StatCard Icon={Target}       label="Ticket promedio" color="text-blue-400"   value={`$${Math.round(stats?.avgTicket || 0).toLocaleString()}`} />
+            <StatCard Icon={Clock}        label="Pendientes"      color="text-orange-400" value={stats?.pendingOrders || 0} badge="AHORA" />
           </div>
 
           {/* Fila secundaria */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6">
-            <StatCard icon="❌" label="Cancelados" color="text-red-400"
-              value={stats?.cancelledOrders || 0}
-            />
-            <StatCard icon="⭐" label="Producto estrella" color="text-purple-400"
-              value={stats?.topProducts?.[0]?.name || "—"}
-              sub={stats?.topProducts?.[0] ? `${stats.topProducts[0].totalSold} vendidos` : ""}
-            />
-            <StatCard icon="🏆" label="Categoría top" color="text-cyan-400"
-              value={stats?.categoryRanking?.[0]?.name || "—"}
-              sub={stats?.categoryRanking?.[0] ? `${stats.categoryRanking[0].total} uds` : ""}
-            />
-            <StatCard icon="💳" label="Método más usado" color="text-pink-400"
-              value={topPayment ? (PAYMENT_LABELS[topPayment.paymentMethod] || topPayment.paymentMethod) : "—"}
-              sub={topPayment ? `${topPayment._count} pedidos` : ""}
-            />
+            <StatCard Icon={XCircle}    label="Cancelados"       color="text-red-400"    value={stats?.cancelledOrders || 0} />
+            <StatCard Icon={Star}       label="Producto estrella" color="text-purple-400" value={stats?.topProducts?.[0]?.name || "—"} sub={stats?.topProducts?.[0] ? `${stats.topProducts[0].totalSold} vendidos` : ""} />
+            <StatCard Icon={Trophy}     label="Categoría top"    color="text-cyan-400"   value={stats?.categoryRanking?.[0]?.name || "—"} sub={stats?.categoryRanking?.[0] ? `${stats.categoryRanking[0].total} uds` : ""} />
+            <StatCard Icon={CreditCard} label="Método más usado" color="text-pink-400"   value={topPayment ? (PAYMENT_LABELS[topPayment.paymentMethod] || topPayment.paymentMethod) : "—"} sub={topPayment ? `${topPayment._count} pedidos` : ""} />
           </div>
 
-          {/* Gráfica ventas por hora + Métodos de pago */}
+          {/* Gráfica + Métodos de pago */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
             <div className="lg:col-span-2 bg-gray-900 border border-gray-800 rounded-xl p-4 md:p-6">
-              <h3 className="text-sm font-semibold text-gray-400 mb-4">Ventas por hora</h3>
+              <h3 className="text-sm font-semibold text-gray-400 mb-4">Ventas por hora <span className="text-gray-600 font-normal">(5 PM – 2 AM)</span></h3>
               {loadingSales ? (
                 <div className="h-40 flex items-center justify-center text-gray-600">Cargando...</div>
               ) : (
                 <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={salesByHour || []}>
+                  <BarChart data={salesByHour} margin={{ left: -10 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
-                    <XAxis dataKey="hour" tick={{ fill: "#6b7280", fontSize: 11 }} tickFormatter={(h) => `${h}h`} />
-                    <YAxis tick={{ fill: "#6b7280", fontSize: 11 }} width={40} />
+                    <XAxis dataKey="hour" tick={{ fill: "#6b7280", fontSize: 11 }} tickFormatter={hourLabel} />
+                    <YAxis tick={{ fill: "#6b7280", fontSize: 11 }} width={45} tickFormatter={(v) => `$${(v/1000).toFixed(0)}k`} />
                     <Tooltip content={<CustomTooltip />} />
-                    <Bar dataKey="revenue" fill="#f59e0b" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="orders"  fill="#374151" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="revenue" fill="#f59e0b" radius={[4,4,0,0]} />
+                    <Bar dataKey="orders"  fill="#374151" radius={[4,4,0,0]} />
                   </BarChart>
                 </ResponsiveContainer>
               )}
@@ -232,9 +220,7 @@ export default function DashboardPage() {
                     <PieChart>
                       <Pie data={paymentData} cx="50%" cy="50%" innerRadius={40} outerRadius={65}
                         dataKey="value" paddingAngle={3}>
-                        {paymentData.map((entry, i) => (
-                          <Cell key={i} fill={entry.color} />
-                        ))}
+                        {paymentData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
                       </Pie>
                       <Tooltip formatter={(v) => `$${v.toLocaleString()}`} />
                     </PieChart>
@@ -260,85 +246,64 @@ export default function DashboardPage() {
 
           {/* Top productos + Categorías + Últimos pedidos */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            {/* Top productos */}
             <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 md:p-6">
               <h3 className="text-sm font-semibold text-gray-400 mb-4">Top productos</h3>
               <div className="space-y-3">
-                {stats?.topProducts?.length ? (
-                  stats.topProducts.map((p, i) => (
-                    <div key={p.id} className="flex items-center gap-3">
-                      <span className="text-xs text-gray-600 w-4">{i + 1}</span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-white font-medium truncate">{p.name}</p>
-                        <div className="h-1.5 bg-gray-800 rounded-full mt-1">
-                          <div className="h-1.5 bg-amber-500 rounded-full"
-                            style={{ width: `${(p.totalSold / stats.topProducts[0].totalSold) * 100}%` }} />
-                        </div>
+                {stats?.topProducts?.length ? stats.topProducts.map((p, i) => (
+                  <div key={p.id} className="flex items-center gap-3">
+                    <span className="text-xs text-gray-600 w-4">{i + 1}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-white font-medium truncate">{p.name}</p>
+                      <div className="h-1.5 bg-gray-800 rounded-full mt-1">
+                        <div className="h-1.5 bg-amber-500 rounded-full" style={{ width: `${(p.totalSold / stats.topProducts[0].totalSold) * 100}%` }} />
                       </div>
-                      <span className="text-xs text-gray-400 flex-shrink-0">{p.totalSold}</span>
                     </div>
-                  ))
-                ) : (
-                  <p className="text-gray-600 text-sm">Sin ventas en este período</p>
-                )}
+                    <span className="text-xs text-gray-400 flex-shrink-0">{p.totalSold}</span>
+                  </div>
+                )) : <p className="text-gray-600 text-sm">Sin ventas en este período</p>}
               </div>
             </div>
 
-            {/* Top categorías */}
             <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 md:p-6">
               <h3 className="text-sm font-semibold text-gray-400 mb-4">Categorías más vendidas</h3>
               <div className="space-y-3">
-                {stats?.categoryRanking?.length ? (
-                  stats.categoryRanking.map((cat, i) => (
-                    <div key={cat.name} className="flex items-center gap-3">
-                      <span className="text-xs text-gray-600 w-4">{i + 1}</span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-white font-medium truncate">{cat.name}</p>
-                        <div className="h-1.5 bg-gray-800 rounded-full mt-1">
-                          <div className="h-1.5 bg-blue-500 rounded-full"
-                            style={{ width: `${(cat.total / stats.categoryRanking[0].total) * 100}%` }} />
-                        </div>
+                {stats?.categoryRanking?.length ? stats.categoryRanking.map((cat, i) => (
+                  <div key={cat.name} className="flex items-center gap-3">
+                    <span className="text-xs text-gray-600 w-4">{i + 1}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-white font-medium truncate">{cat.name}</p>
+                      <div className="h-1.5 bg-gray-800 rounded-full mt-1">
+                        <div className="h-1.5 bg-blue-500 rounded-full" style={{ width: `${(cat.total / stats.categoryRanking[0].total) * 100}%` }} />
                       </div>
-                      <span className="text-xs text-gray-400 flex-shrink-0">{cat.total} uds</span>
                     </div>
-                  ))
-                ) : (
-                  <p className="text-gray-600 text-sm">Sin ventas en este período</p>
-                )}
+                    <span className="text-xs text-gray-400 flex-shrink-0">{cat.total} uds</span>
+                  </div>
+                )) : <p className="text-gray-600 text-sm">Sin ventas en este período</p>}
               </div>
             </div>
 
-            {/* Últimos pedidos */}
             <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 md:p-6">
               <h3 className="text-sm font-semibold text-gray-400 mb-4">Últimos pedidos</h3>
               <div className="space-y-3">
-                {stats?.recentOrders?.length ? (
-                  stats.recentOrders.map((order) => (
-                    <div key={order.id} className="flex items-center gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-0.5">
-                          <span className="text-white text-xs font-medium">#{order.id}</span>
-                          <span className={`text-xs px-1.5 py-0.5 rounded-full border ${STATUS_COLORS[order.status]}`}>
-                            {STATUS_LABELS[order.status]}
-                          </span>
-                          {order.paymentMethod && (
-                            <span className="text-xs text-gray-500">
-                              {PAYMENT_ICONS[order.paymentMethod] || "💰"}
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-gray-500 text-xs truncate">
-                          {order.items.map((i) => `${i.quantity}x ${i.product.name}`).join(", ")}
-                        </p>
+                {stats?.recentOrders?.length ? stats.recentOrders.map((order) => (
+                  <div key={order.id} className="flex items-center gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="text-white text-xs font-medium">#{order.id}</span>
+                        <span className={`text-xs px-1.5 py-0.5 rounded-full border ${STATUS_COLORS[order.status]}`}>
+                          {STATUS_LABELS[order.status]}
+                        </span>
+                        {order.paymentMethod && (
+                          <span className="text-xs text-gray-500">{PAYMENT_ICONS[order.paymentMethod] || "💰"}</span>
+                        )}
                       </div>
-                      <span className="text-amber-400 font-bold text-xs flex-shrink-0">
-                        ${order.total.toLocaleString()}
-                      </span>
+                      <p className="text-gray-500 text-xs truncate">
+                        {order.items.map((i) => `${i.quantity}x ${i.product.name}`).join(", ")}
+                      </p>
                     </div>
-                  ))
-                ) : (
-                  <p className="text-gray-600 text-sm">Sin pedidos en este período</p>
-                )}
+                    <span className="text-amber-400 font-bold text-xs flex-shrink-0">${order.total.toLocaleString()}</span>
+                  </div>
+                )) : <p className="text-gray-600 text-sm">Sin pedidos en este período</p>}
               </div>
             </div>
           </div>

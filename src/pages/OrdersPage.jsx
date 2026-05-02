@@ -1,4 +1,8 @@
 import { useState, useEffect, useMemo, useRef } from "react";
+import {
+  Pencil, X, Printer, ChefHat, DollarSign,
+  Search, User, FileText, SlidersHorizontal,
+} from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useOrders, useProducts } from "../hooks/useData";
 import { useAuth } from "../context/AuthContext";
@@ -23,6 +27,12 @@ const NEXT_STATUS = {
 
 const TODAY = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
   .toISOString().split("T")[0];
+
+const ORDER_TYPE_LABELS = {
+  MESA:      { label: "Mesa",      icon: "🍽️",  color: "text-purple-400 bg-purple-900/30 border-purple-800" },
+  DOMICILIO: { label: "Domicilio", icon: "🛵",   color: "text-orange-400 bg-orange-900/30 border-orange-800" },
+  LLEVAR:    { label: "Llevar",    icon: "📦",   color: "text-cyan-400 bg-cyan-900/30 border-cyan-800" },
+};
 
 const TRANSFER_INFO = {
   qrImage: qrTransferencia,
@@ -697,9 +707,10 @@ export default function OrdersPage() {
                     <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${st.color}`}>
                       {st.label}
                     </span>
-                    {order.tableNumber && (
-                      <span className="text-xs text-gray-500">
-                        Mesa <Highlight text={String(order.tableNumber)} query={q.replace("mesa", "").trim()} />
+                    {order.orderType && ORDER_TYPE_LABELS[order.orderType] && (
+                      <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${ORDER_TYPE_LABELS[order.orderType].color}`}>
+                        {ORDER_TYPE_LABELS[order.orderType].icon} {ORDER_TYPE_LABELS[order.orderType].label}
+                        {order.orderType === "MESA" && order.tableNumber ? ` ${order.tableNumber}` : ""}
                       </span>
                     )}
                   </div>
@@ -718,8 +729,8 @@ export default function OrdersPage() {
                 </p>
 
                 {order.notes && (
-                  <p className="text-yellow-400/70 text-xs mt-0.5 mb-1">
-                    📝 <Highlight text={order.notes} query={q} />
+                  <p className="text-yellow-400/70 text-xs mt-0.5 mb-1 flex items-center gap-1">
+                    <FileText size={11} /> <Highlight text={order.notes} query={q} />
                   </p>
                 )}
 
@@ -727,8 +738,8 @@ export default function OrdersPage() {
                   {new Date(order.createdAt).toLocaleTimeString("es-CO")}
                 </p>
                 {order.user?.name && (
-                  <p className="text-xs text-gray-400 mb-3">
-                    👤 Atendió: <span className="text-white font-medium">{order.user.name}</span>
+                  <p className="text-xs text-gray-400 mb-3 flex items-center gap-1">
+                    <User size={11} /> <span className="text-white font-medium">{order.user.name}</span>
                   </p>
                 )}
 
@@ -745,14 +756,14 @@ export default function OrdersPage() {
                       {updating === order.id
                         ? "..."
                         : NEXT_STATUS[order.status] === "DELIVERED"
-                        ? "💰 Cobrar y entregar"
+                        ? <><DollarSign size={13} className="inline mr-1" />Cobrar y entregar</>
                         : `→ ${STATUS_LABELS[NEXT_STATUS[order.status]].label}`}
                     </button>
                   )}
                   {canEdit && (
                     <button onClick={() => setEditOrder(order)}
                       className="bg-blue-900/20 hover:bg-blue-900/40 border border-blue-900 text-blue-400 text-xs font-medium px-3 py-2 rounded-lg transition-colors">
-                      ✏️
+                      <Pencil size={13} />
                     </button>
                   )}
                   {canCancel && (
@@ -767,7 +778,7 @@ export default function OrdersPage() {
                         onClick={() => printKitchenTicket(order)}
                         className="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 text-xs font-medium px-3 py-2 rounded-lg transition-colors"
                         title="Imprimir ticket cocina">
-                        🍳
+                        <ChefHat size={14} />
                       </button>
                       <button
                         onClick={() => printReceipt({
@@ -780,7 +791,7 @@ export default function OrdersPage() {
                         })}
                         className="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 text-xs font-medium px-3 py-2 rounded-lg transition-colors"
                         title="Imprimir factura">
-                        🖨️
+                        <Printer size={14} />
                       </button>
                     </>
                   )}
@@ -793,7 +804,7 @@ export default function OrdersPage() {
             <div className="text-center py-16 text-gray-600">
               {isSearching ? (
                 <>
-                  <p className="text-4xl mb-3">🔍</p>
+                  <div className="text-4xl mb-3 flex justify-center"><Search size={40} className="text-gray-600" /></div>
                   <p className="text-gray-500">Sin resultados para <span className="text-amber-400">"{searchQuery}"</span></p>
                   <p className="text-xs mt-2 text-gray-600">Prueba con el número de pedido, mesa o una nota</p>
                   <button onClick={() => setSearchQuery("")}
@@ -803,7 +814,7 @@ export default function OrdersPage() {
                 </>
               ) : (
                 <>
-                  <p className="text-4xl mb-3">🧾</p>
+                  <div className="text-4xl mb-3 flex justify-center"><FileText size={40} className="text-gray-600" /></div>
                   <p>No hay pedidos con este filtro!</p>
                 </>
               )}

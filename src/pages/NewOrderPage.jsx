@@ -1,32 +1,103 @@
 import { useState, useMemo } from "react";
+import {
+  Search, X, ShoppingCart, Minus, Plus, Trash2,
+  CheckCircle, AlertCircle, Hash, StickyNote,
+  UtensilsCrossed, Bike, Package, ChevronRight,
+} from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useProducts } from "../hooks/useData";
 import api from "../utils/api";
 
+const TYPE_OPTIONS = [
+  { key: "MESA",      Icon: UtensilsCrossed, label: "Mesa"      },
+  { key: "DOMICILIO", Icon: Bike,            label: "Domicilio" },
+  { key: "LLEVAR",    Icon: Package,         label: "Llevar"    },
+];
+
 // ── CartPanel como componente externo para evitar re-renders ──
 function CartPanel({
+  error, setError,
+  orderType, setOrderType,
   tableNumber, setTableNumber,
   notes, setNotes,
+  delivery, setDelivery,
   cartItems, total,
   addToCart, removeFromCart,
   submitting, handleSubmit,
 }) {
   return (
     <div className="flex flex-col h-full">
-      <h3 className="text-sm font-semibold text-gray-400 mb-4">Resumen del pedido</h3>
 
-      {/* Mesa */}
-      <div className="mb-3">
-        <label className="block text-xs text-gray-500 mb-1">Número de mesa (opcional)</label>
-        <input
-          type="number" value={tableNumber}
-          onChange={(e) => setTableNumber(e.target.value)}
-          placeholder="Para llevar si está vacío"
-          className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-amber-500"
-        />
+      {/* Selector de tipo */}
+      <div className="mb-4">
+        <div className="grid grid-cols-3 gap-1.5">
+          {TYPE_OPTIONS.map(({ key, Icon, label }) => (
+            <button
+              key={key}
+              onClick={() => { setOrderType(key); setError(""); }}
+              className={`flex flex-col items-center gap-1 py-2.5 rounded-xl border text-xs font-semibold transition-all ${
+                orderType === key
+                  ? "bg-amber-500 border-amber-500 text-gray-900"
+                  : "bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-600"
+              }`}
+            >
+              <Icon size={18} />
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Notas */}
+      {/* Panel Mesa */}
+      {orderType === "MESA" && (
+        <div className="mb-3">
+          <label className="block text-xs text-gray-500 mb-1">Número de mesa (opcional)</label>
+          <input
+            type="number" value={tableNumber}
+            onChange={(e) => setTableNumber(e.target.value)}
+            placeholder="Para llevar si está vacío"
+            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-amber-500"
+          />
+        </div>
+      )}
+
+      {/* Panel Domicilio */}
+      {orderType === "DOMICILIO" && (
+        <div className="mb-3 space-y-2">
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Cliente</label>
+              <input
+                value={delivery.customerName}
+                onChange={(e) => setDelivery({ ...delivery, customerName: e.target.value })}
+                placeholder="Nombre"
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-amber-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Teléfono</label>
+              <input
+                value={delivery.phone}
+                onChange={(e) => setDelivery({ ...delivery, phone: e.target.value })}
+                placeholder="300..."
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-amber-500"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Dirección *</label>
+            <input
+              value={delivery.address}
+              onChange={(e) => setDelivery({ ...delivery, address: e.target.value })}
+              placeholder="Calle, referencia..."
+              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-amber-500"
+            />
+          </div>
+
+        </div>
+      )}
+
+      {/* Notas cocina */}
       <div className="mb-4">
         <label className="block text-xs text-gray-500 mb-1">Notas para cocina (opcional)</label>
         <textarea
@@ -69,6 +140,13 @@ function CartPanel({
         </div>
       </div>
 
+      {error && (
+        <div className="mb-3 bg-red-900/30 border border-red-800 rounded-xl px-3 py-2.5 flex items-center gap-2">
+          <span className="text-red-400 text-base">⚠️</span>
+          <p className="text-red-400 text-xs font-medium">{error}</p>
+        </div>
+      )}
+
       <button
         onClick={handleSubmit}
         disabled={submitting || !cartItems.length}
@@ -84,53 +162,50 @@ export default function NewOrderPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { data: products, loading } = useProducts({ available: true });
-  const [cart, setCart] = useState({});
+
+  const [cart, setCart]             = useState({});
+  const [orderType, setOrderType]   = useState("MESA");
   const [tableNumber, setTableNumber] = useState(searchParams.get("table") || "");
-  const [notes, setNotes] = useState("");
+  const [notes, setNotes]           = useState("");
+  const [delivery, setDelivery]     = useState({ customerName: "", phone: "", address: "" });
   const [submitting, setSubmitting] = useState(false);
-  const [search, setSearch] = useState("");
+  const [error, setError]           = useState("");
+  const [search, setSearch]         = useState("");
   const [activeCategory, setActiveCategory] = useState("Todas");
-  const [cartOpen, setCartOpen] = useState(false);
+  const [cartOpen, setCartOpen]     = useState(false);
 
-  const addToCart = (productId) => {
-    setCart((prev) => ({ ...prev, [productId]: (prev[productId] || 0) + 1 }));
-  };
-
-  const removeFromCart = (productId) => {
-    setCart((prev) => {
-      const next = { ...prev };
-      if (next[productId] > 1) next[productId]--;
-      else delete next[productId];
-      return next;
-    });
-  };
+  const addToCart    = (id) => setCart((p) => ({ ...p, [id]: (p[id] || 0) + 1 }));
+  const removeFromCart = (id) => setCart((p) => {
+    const next = { ...p };
+    if (next[id] > 1) next[id]--;
+    else delete next[id];
+    return next;
+  });
 
   const cartItems = Object.entries(cart).map(([id, qty]) => {
     const product = products?.find((p) => p.id === Number(id));
     return { product, quantity: qty };
   }).filter((i) => i.product);
 
-  const total = cartItems.reduce(
-    (sum, { product, quantity }) => sum + product.price * quantity, 0
-  );
-
+  const total      = cartItems.reduce((sum, { product, quantity }) => sum + product.price * quantity, 0);
   const totalItems = cartItems.reduce((sum, { quantity }) => sum + quantity, 0);
 
   const handleSubmit = async () => {
-    if (!cartItems.length) return alert("Agrega al menos un producto");
+    if (!cartItems.length) { setError("Agrega al menos un producto"); return; }
+    if (orderType === "DOMICILIO" && !delivery.address) { setError("La dirección es requerida para domicilio"); return; }
     setSubmitting(true);
     try {
       await api.post("/orders", {
-        tableNumber: tableNumber ? Number(tableNumber) : null,
+        orderType,
+        tableNumber: orderType === "MESA" && tableNumber ? Number(tableNumber) : null,
         notes: notes || null,
-        items: cartItems.map(({ product, quantity }) => ({
-          productId: product.id,
-          quantity,
-        })),
+        items: cartItems.map(({ product, quantity }) => ({ productId: product.id, quantity })),
+        ...(orderType === "DOMICILIO" ? { delivery } : {}),
       });
       navigate("/orders", { state: { refresh: true } });
+      setError("");
     } catch (err) {
-      alert(err.response?.data?.message || "Error al crear pedido");
+      setError(err.response?.data?.message || "Error al crear pedido");
     } finally {
       setSubmitting(false);
     }
@@ -149,18 +224,12 @@ export default function NewOrderPage() {
     });
   }, [products, search, activeCategory]);
 
-  const grouped = useMemo(() => {
-    return filtered.reduce((acc, p) => {
-      const cat = p.category?.name || "Sin categoría";
-      if (!acc[cat]) acc[cat] = [];
-      acc[cat].push(p);
-      return acc;
-    }, {});
-  }, [filtered]);
-
   const cartPanelProps = {
+    error, setError,
+    orderType, setOrderType,
     tableNumber, setTableNumber,
     notes, setNotes,
+    delivery, setDelivery,
     cartItems, total,
     addToCart, removeFromCart,
     submitting, handleSubmit,
@@ -173,9 +242,19 @@ export default function NewOrderPage() {
       <div className="flex-1 overflow-y-auto p-4 md:p-0">
         <div className="flex items-center gap-3 mb-4 md:mb-6">
           <h2 className="text-xl md:text-2xl font-bold text-white">Nuevo Pedido</h2>
-          {tableNumber && (
+          {orderType === "MESA" && tableNumber && (
             <span className="bg-amber-500/20 border border-amber-600 text-amber-400 text-xs font-bold px-3 py-1 rounded-full">
               Mesa {tableNumber}
+            </span>
+          )}
+          {orderType === "DOMICILIO" && (
+            <span className="bg-amber-500/20 border border-amber-600 text-amber-400 text-xs font-bold px-3 py-1 rounded-full">
+              🛵 Domicilio
+            </span>
+          )}
+          {orderType === "LLEVAR" && (
+            <span className="bg-amber-500/20 border border-amber-600 text-amber-400 text-xs font-bold px-3 py-1 rounded-full">
+              📦 Llevar
             </span>
           )}
         </div>
@@ -220,7 +299,7 @@ export default function NewOrderPage() {
 
         {loading ? (
           <p className="text-gray-500 animate-pulse">Cargando productos...</p>
-        ) : Object.keys(grouped).length === 0 ? (
+        ) : filtered.length === 0 ? (
           <div className="text-center py-16">
             <p className="text-gray-500 text-sm">No se encontraron productos</p>
             <button onClick={() => { setSearch(""); setActiveCategory("Todas"); }}
@@ -229,40 +308,35 @@ export default function NewOrderPage() {
             </button>
           </div>
         ) : (
-          Object.entries(grouped).map(([category, items]) => (
-            <div key={category} className="mb-6 md:mb-8">
-              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3">{category}</h3>
-              <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 md:gap-3">
-                {items.map((product) => {
-                  const qty = cart[product.id] || 0;
-                  return (
-                    <button key={product.id} onClick={() => addToCart(product.id)}
-                      className={`relative text-left p-3 md:p-4 rounded-xl border transition-all ${
-                        qty > 0
-                          ? "bg-amber-900/20 border-amber-600"
-                          : "bg-gray-900 border-gray-800 hover:border-gray-600"
-                      }`}
-                    >
-                      {qty > 0 && (
-                        <span className="absolute top-2 right-2 bg-amber-500 text-gray-900 text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">
-                          {qty}
-                        </span>
-                      )}
-                      <p className="text-white font-medium text-xs md:text-sm pr-6">{product.name}</p>
-                      <p className="text-amber-400 font-bold mt-1 text-sm">${product.price.toLocaleString()}</p>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ))
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 md:gap-3">
+            {filtered.map((product) => {
+              const qty = cart[product.id] || 0;
+              return (
+                <button key={product.id} onClick={() => addToCart(product.id)}
+                  className={`relative text-left p-3 md:p-4 rounded-xl border transition-all ${
+                    qty > 0
+                      ? "bg-amber-900/20 border-amber-600"
+                      : "bg-gray-900 border-gray-800 hover:border-gray-600"
+                  }`}
+                >
+                  {qty > 0 && (
+                    <span className="absolute top-2 right-2 bg-amber-500 text-gray-900 text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">
+                      {qty}
+                    </span>
+                  )}
+                  <p className="text-white font-medium text-xs md:text-sm pr-6">{product.name}</p>
+                  <p className="text-amber-400 font-bold mt-1 text-sm">${product.price.toLocaleString()}</p>
+                </button>
+              );
+            })}
+          </div>
         )}
 
         <div className="h-24 md:hidden" />
       </div>
 
       {/* ── Carrito desktop ── */}
-      <div className="hidden md:block w-80 bg-gray-900 border border-gray-800 rounded-2xl p-6 h-fit sticky top-0">
+      <div className="hidden md:block w-80 bg-gray-900 border border-gray-800 rounded-2xl p-6 h-fit sticky top-0 max-h-screen overflow-y-auto">
         <CartPanel {...cartPanelProps} />
       </div>
 

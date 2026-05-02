@@ -1,5 +1,9 @@
 import { useState } from "react";
 import { useFetch } from "../hooks/useData";
+import {
+  DollarSign, Receipt, Target, XCircle,
+  Printer, CreditCard, BarChart2, ClipboardList,
+} from "lucide-react";
 
 const TODAY = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
   .toISOString()
@@ -9,12 +13,21 @@ const PAYMENT_LABELS = {
   EFECTIVO:      "Efectivo",
   TRANSFERENCIA: "Transferencia",
   TARJETA:       "Tarjeta",
+  MIXTO:         "Mixto",
 };
 
 const PAYMENT_COLORS = {
   EFECTIVO:      "text-green-400 bg-green-900/30 border-green-800",
   TRANSFERENCIA: "text-blue-400 bg-blue-900/30 border-blue-800",
   TARJETA:       "text-purple-400 bg-purple-900/30 border-purple-800",
+  MIXTO:         "text-pink-400 bg-pink-900/30 border-pink-800",
+};
+
+const PAYMENT_ICONS = {
+  EFECTIVO:      "💵",
+  TRANSFERENCIA: "📲",
+  TARJETA:       "💳",
+  MIXTO:         "🔀",
 };
 
 export default function CashRegisterPage() {
@@ -28,7 +41,7 @@ export default function CashRegisterPage() {
 
     const paymentRows = cash?.paymentBreakdown?.map((p) => `
       <tr>
-        <td>${PAYMENT_LABELS[p.paymentMethod] || p.paymentMethod}</td>
+        <td>${PAYMENT_ICONS[p.paymentMethod] || ""} ${PAYMENT_LABELS[p.paymentMethod] || p.paymentMethod}</td>
         <td>${p._count} pedidos</td>
         <td>$${(p._sum.total || 0).toLocaleString()}</td>
       </tr>
@@ -92,6 +105,13 @@ export default function CashRegisterPage() {
     setTimeout(() => { w.focus(); w.print(); w.onafterprint = () => w.close(); }, 250);
   };
 
+  const statCards = [
+    { Icon: DollarSign,  label: "Total del día",     value: `$${(cash?.totalRevenue || 0).toLocaleString()}`,        color: "text-amber-400",  bg: "bg-amber-500/10" },
+    { Icon: Receipt,     label: "Pedidos entregados", value: cash?.totalOrders ?? 0,                                  color: "text-green-400",  bg: "bg-green-500/10" },
+    { Icon: Target,      label: "Ticket promedio",    value: `$${Math.round(cash?.avgTicket || 0).toLocaleString()}`, color: "text-blue-400",   bg: "bg-blue-500/10"  },
+    { Icon: XCircle,     label: "Cancelados",         value: cash?.cancelledOrders ?? 0,                              color: "text-red-400",    bg: "bg-red-500/10"   },
+  ];
+
   return (
     <div className="p-4 md:p-8">
       {/* Header */}
@@ -109,9 +129,9 @@ export default function CashRegisterPage() {
           <button
             onClick={handlePrint}
             disabled={!cash || loading}
-            className="bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-gray-900 font-bold px-4 py-2 rounded-lg text-sm"
+            className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-gray-900 font-bold px-4 py-2 rounded-lg text-sm transition-colors"
           >
-            🖨️ Imprimir cierre
+            <Printer size={15} /> Imprimir cierre
           </button>
         </div>
       </div>
@@ -122,15 +142,12 @@ export default function CashRegisterPage() {
         <>
           {/* Tarjetas resumen */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-            {[
-              { icon: "💰", label: "Total del día",    value: `$${(cash.totalRevenue || 0).toLocaleString()}`,          color: "text-amber-400" },
-              { icon: "🧾", label: "Pedidos entregados",value: cash.totalOrders,                                         color: "text-green-400" },
-              { icon: "🎯", label: "Ticket promedio",   value: `$${Math.round(cash.avgTicket || 0).toLocaleString()}`,   color: "text-blue-400"  },
-              { icon: "❌", label: "Cancelados",        value: cash.cancelledOrders,                                     color: "text-red-400"   },
-            ].map(({ icon, label, value, color }) => (
+            {statCards.map(({ Icon, label, value, color, bg }) => (
               <div key={label} className="bg-gray-900 border border-gray-800 rounded-xl p-4">
-                <span className="text-xl">{icon}</span>
-                <p className={`text-2xl font-bold ${color} mt-2`}>{value}</p>
+                <div className={`w-9 h-9 rounded-lg ${bg} flex items-center justify-center mb-3`}>
+                  <Icon size={18} className={color} />
+                </div>
+                <p className={`text-2xl font-bold ${color}`}>{value}</p>
                 <p className="text-xs text-gray-500 mt-1">{label}</p>
               </div>
             ))}
@@ -139,7 +156,10 @@ export default function CashRegisterPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
             {/* Métodos de pago */}
             <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
-              <h3 className="text-sm font-semibold text-gray-400 mb-4">Métodos de pago</h3>
+              <div className="flex items-center gap-2 mb-4">
+                <CreditCard size={15} className="text-gray-400" />
+                <h3 className="text-sm font-semibold text-gray-400">Métodos de pago</h3>
+              </div>
               {cash.paymentBreakdown?.length === 0 ? (
                 <p className="text-gray-600 text-sm">Sin pagos registrados</p>
               ) : (
@@ -148,7 +168,7 @@ export default function CashRegisterPage() {
                     <div key={p.paymentMethod} className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${PAYMENT_COLORS[p.paymentMethod] || "text-gray-400 bg-gray-800 border-gray-700"}`}>
-                          {PAYMENT_LABELS[p.paymentMethod] || p.paymentMethod}
+                          {PAYMENT_ICONS[p.paymentMethod] || ""} {PAYMENT_LABELS[p.paymentMethod] || p.paymentMethod}
                         </span>
                         <span className="text-gray-500 text-xs">{p._count} pedidos</span>
                       </div>
@@ -161,7 +181,10 @@ export default function CashRegisterPage() {
 
             {/* Top productos */}
             <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
-              <h3 className="text-sm font-semibold text-gray-400 mb-4">Top productos del día</h3>
+              <div className="flex items-center gap-2 mb-4">
+                <BarChart2 size={15} className="text-gray-400" />
+                <h3 className="text-sm font-semibold text-gray-400">Top productos del día</h3>
+              </div>
               <div className="space-y-2">
                 {cash.topProducts?.map((p, i) => (
                   <div key={p.id} className="flex items-center gap-3">
@@ -179,9 +202,12 @@ export default function CashRegisterPage() {
               </div>
             </div>
 
-            {/* Últimos pedidos */}
+            {/* Pedidos del día */}
             <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
-              <h3 className="text-sm font-semibold text-gray-400 mb-4">Pedidos del día</h3>
+              <div className="flex items-center gap-2 mb-4">
+                <ClipboardList size={15} className="text-gray-400" />
+                <h3 className="text-sm font-semibold text-gray-400">Pedidos del día</h3>
+              </div>
               <div className="space-y-2 max-h-48 overflow-y-auto">
                 {cash.orders?.length === 0 ? (
                   <p className="text-gray-600 text-sm">Sin pedidos</p>
@@ -189,10 +215,15 @@ export default function CashRegisterPage() {
                   cash.orders?.map((order) => (
                     <div key={order.id} className="flex items-center justify-between py-1 border-b border-gray-800 last:border-0">
                       <div>
-                        <span className="text-white text-xs font-medium">#{order.id}</span>
-                        {order.tableNumber && (
-                          <span className="text-gray-500 text-xs ml-2">Mesa {order.tableNumber}</span>
-                        )}
+                        <div className="flex items-center gap-2">
+                          <span className="text-white text-xs font-medium">#{order.id}</span>
+                          {order.tableNumber && (
+                            <span className="text-gray-500 text-xs">Mesa {order.tableNumber}</span>
+                          )}
+                          {order.paymentMethod && (
+                            <span className="text-xs">{PAYMENT_ICONS[order.paymentMethod] || ""}</span>
+                          )}
+                        </div>
                         <p className="text-gray-600 text-xs">
                           {new Date(order.createdAt).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })}
                           {order.paymentMethod && ` · ${PAYMENT_LABELS[order.paymentMethod]}`}

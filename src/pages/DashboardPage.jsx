@@ -21,7 +21,21 @@ const STATUS_LABELS = {
   READY: "Listo", DELIVERED: "Entregado", CANCELLED: "Cancelado",
 };
 
-const PAYMENT_COLORS = ["#f59e0b", "#3b82f6", "#10b981"];
+const PAYMENT_COLORS = ["#f59e0b", "#3b82f6", "#10b981", "#a855f7"];
+
+const PAYMENT_LABELS = {
+  EFECTIVO:      "Efectivo",
+  TRANSFERENCIA: "Transferencia",
+  TARJETA:       "Tarjeta",
+  MIXTO:         "Mixto",
+};
+
+const PAYMENT_ICONS = {
+  EFECTIVO:      "💵",
+  TRANSFERENCIA: "📲",
+  TARJETA:       "💳",
+  MIXTO:         "🔀",
+};
 
 function StatCard({ icon, label, value, sub, color = "text-amber-400", badge, trend }) {
   return (
@@ -63,12 +77,6 @@ const CustomTooltip = ({ active, payload, label }) => {
   return null;
 };
 
-const PAYMENT_LABELS = {
-  EFECTIVO: "Efectivo",
-  TRANSFERENCIA: "Transferencia",
-  TARJETA: "Tarjeta",
-};
-
 export default function DashboardPage() {
   const [mode, setMode] = useState("day");
   const [date, setDate] = useState(TODAY);
@@ -83,10 +91,16 @@ export default function DashboardPage() {
 
   const paymentData = stats?.paymentMethods?.map((p, i) => ({
     name:  PAYMENT_LABELS[p.paymentMethod] || p.paymentMethod || "Sin método",
+    icon:  PAYMENT_ICONS[p.paymentMethod] || "💰",
     value: p._sum.total || 0,
     count: p._count,
     color: PAYMENT_COLORS[i % PAYMENT_COLORS.length],
   })) || [];
+
+  // Método más usado (incluyendo MIXTO)
+  const topPayment = stats?.paymentMethods?.length
+    ? stats.paymentMethods.sort((a, b) => b._count - a._count)[0]
+    : null;
 
   return (
     <div className="p-4 md:p-8">
@@ -151,7 +165,7 @@ export default function DashboardPage() {
         <div className="text-gray-500 animate-pulse">Cargando estadísticas...</div>
       ) : (
         <>
-          {/* ── Tarjetas principales ── */}
+          {/* Tarjetas principales */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6">
             <StatCard icon="💰" label="Ingresos" color="text-amber-400"
               value={`$${(stats?.totalRevenue || 0).toLocaleString()}`}
@@ -168,7 +182,7 @@ export default function DashboardPage() {
             />
           </div>
 
-          {/* ── Fila secundaria ── */}
+          {/* Fila secundaria */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6">
             <StatCard icon="❌" label="Cancelados" color="text-red-400"
               value={stats?.cancelledOrders || 0}
@@ -182,15 +196,12 @@ export default function DashboardPage() {
               sub={stats?.categoryRanking?.[0] ? `${stats.categoryRanking[0].total} uds` : ""}
             />
             <StatCard icon="💳" label="Método más usado" color="text-pink-400"
-              value={
-                stats?.paymentMethods?.length
-                  ? PAYMENT_LABELS[stats.paymentMethods.sort((a,b) => b._count - a._count)[0]?.paymentMethod] || "—"
-                  : "—"
-              }
+              value={topPayment ? (PAYMENT_LABELS[topPayment.paymentMethod] || topPayment.paymentMethod) : "—"}
+              sub={topPayment ? `${topPayment._count} pedidos` : ""}
             />
           </div>
 
-          {/* ── Gráfica ventas por hora + Métodos de pago ── */}
+          {/* Gráfica ventas por hora + Métodos de pago */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
             <div className="lg:col-span-2 bg-gray-900 border border-gray-800 rounded-xl p-4 md:p-6">
               <h3 className="text-sm font-semibold text-gray-400 mb-4">Ventas por hora</h3>
@@ -232,8 +243,8 @@ export default function DashboardPage() {
                     {paymentData.map((p, i) => (
                       <div key={i} className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: p.color }} />
-                          <span className="text-xs text-gray-400">{p.name}</span>
+                          <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: p.color }} />
+                          <span className="text-xs text-gray-400">{p.icon} {p.name}</span>
                         </div>
                         <div className="text-right">
                           <span className="text-xs text-white font-medium">${p.value.toLocaleString()}</span>
@@ -247,7 +258,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* ── Top productos + Categorías + Últimos pedidos ── */}
+          {/* Top productos + Categorías + Últimos pedidos */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             {/* Top productos */}
             <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 md:p-6">
@@ -310,6 +321,11 @@ export default function DashboardPage() {
                           <span className={`text-xs px-1.5 py-0.5 rounded-full border ${STATUS_COLORS[order.status]}`}>
                             {STATUS_LABELS[order.status]}
                           </span>
+                          {order.paymentMethod && (
+                            <span className="text-xs text-gray-500">
+                              {PAYMENT_ICONS[order.paymentMethod] || "💰"}
+                            </span>
+                          )}
                         </div>
                         <p className="text-gray-500 text-xs truncate">
                           {order.items.map((i) => `${i.quantity}x ${i.product.name}`).join(", ")}

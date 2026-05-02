@@ -194,15 +194,46 @@ function EditOrderModal({ order, onClose, onSaved }) {
 function PaymentModal({ order, onConfirm, onClose }) {
   const [method, setMethod]       = useState(null);
   const [cashGiven, setCashGiven] = useState("");
+  // Pago mixto
+  const [mixCash, setMixCash]     = useState("");
+  const [mixTransfer, setMixTransfer] = useState("");
+
+  const mixCashNum     = Number(mixCash) || 0;
+  const mixTransferNum = Number(mixTransfer) || 0;
+  const mixTotal       = mixCashNum + mixTransferNum;
+  const mixOk          = method === "MIXTO" && mixCashNum > 0 && mixTransferNum > 0 && mixTotal === order.total;
+  const mixChange      = mixCashNum > 0 && mixTotal > order.total ? mixTotal - order.total : 0;
 
   const canConfirm = method && (
-    method !== "EFECTIVO" || (cashGiven && Number(cashGiven) >= order.total)
+    method === "TRANSFERENCIA" ||
+    method === "TARJETA" ||
+    (method === "EFECTIVO" && cashGiven && Number(cashGiven) >= order.total) ||
+    mixOk ||
+    (method === "MIXTO" && mixCashNum > 0 && mixTransferNum > 0 && mixTotal >= order.total)
   );
+
+  const handleConfirm = () => {
+    if (!canConfirm) return;
+    if (method === "MIXTO") {
+      onConfirm({
+        method:      "MIXTO",
+        cashGiven:   mixCashNum,
+        transfer:    mixTransferNum,
+        change:      mixTotal > order.total ? mixTotal - order.total : 0,
+      });
+    } else {
+      onConfirm({
+        method,
+        cashGiven: method === "EFECTIVO" ? Number(cashGiven) : null,
+        change:    method === "EFECTIVO" ? Number(cashGiven) - order.total : null,
+      });
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-sm shadow-2xl">
+      <div className="relative bg-gray-900 border border-gray-800 rounded-2xl w-full max-w-sm shadow-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-gray-800">
           <div>
             <h3 className="text-white font-semibold">Método de pago</h3>
@@ -214,14 +245,16 @@ function PaymentModal({ order, onConfirm, onClose }) {
         </div>
 
         <div className="p-6 space-y-4">
-          <div className="grid grid-cols-3 gap-2">
+          {/* Métodos de pago */}
+          <div className="grid grid-cols-2 gap-2">
             {[
               { key: "EFECTIVO",      icon: "💵", label: "Efectivo" },
               { key: "TRANSFERENCIA", icon: "📲", label: "Transferencia" },
               { key: "TARJETA",       icon: "💳", label: "Tarjeta" },
+              { key: "MIXTO",         icon: "🔀", label: "Mixto" },
             ].map(({ key, icon, label }) => (
               <button key={key}
-                onClick={() => { setMethod(key); setCashGiven(""); }}
+                onClick={() => { setMethod(key); setCashGiven(""); setMixCash(""); setMixTransfer(""); }}
                 className={`flex flex-col items-center gap-2 p-4 rounded-xl border transition-all ${
                   method === key
                     ? "bg-amber-500/20 border-amber-500 text-amber-400"
@@ -233,6 +266,7 @@ function PaymentModal({ order, onConfirm, onClose }) {
             ))}
           </div>
 
+          {/* EFECTIVO */}
           {method === "EFECTIVO" && (
             <div className="space-y-3">
               <div>
@@ -260,6 +294,7 @@ function PaymentModal({ order, onConfirm, onClose }) {
             </div>
           )}
 
+          {/* TRANSFERENCIA */}
           {method === "TRANSFERENCIA" && (
             <div className="border border-gray-700 rounded-xl overflow-hidden">
               <div className="bg-gray-800 px-4 py-2.5 border-b border-gray-700">
@@ -298,12 +333,90 @@ function PaymentModal({ order, onConfirm, onClose }) {
             </div>
           )}
 
+          {/* MIXTO */}
+          {method === "MIXTO" && (
+            <div className="space-y-3">
+              <div className="bg-gray-800/60 border border-gray-700 rounded-xl p-4 space-y-3">
+                <p className="text-xs text-gray-400 font-medium">
+                  Total a pagar: <span className="text-amber-400 font-bold">${order.total.toLocaleString()}</span>
+                </p>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">💵 Parte en efectivo</label>
+                  <input type="number" value={mixCash}
+                    onChange={(e) => {
+                      setMixCash(e.target.value);
+                      const cash = Number(e.target.value) || 0;
+                      const remaining = order.total - cash;
+                      if (remaining >= 0) setMixTransfer(String(remaining));
+                    }}
+                    placeholder="$0"
+                    autoFocus
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">📲 Parte por transferencia</label>
+                  <input type="number" value={mixTransfer}
+                    onChange={(e) => setMixTransfer(e.target.value)}
+                    placeholder="$0"
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+
+                {/* Resumen */}
+                {(mixCashNum > 0 || mixTransferNum > 0) && (
+                  <div className="border-t border-gray-700 pt-3 space-y-1.5">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">Efectivo</span>
+                      <span className="text-white">${mixCashNum.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-gray-500">Transferencia</span>
+                      <span className="text-white">${mixTransferNum.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between text-xs font-bold">
+                      <span className="text-gray-400">Total recibido</span>
+                      <span className={mixTotal >= order.total ? "text-green-400" : "text-red-400"}>
+                        ${mixTotal.toLocaleString()}
+                      </span>
+                    </div>
+                    {mixTotal > order.total && (
+                      <div className="bg-green-900/20 border border-green-800 rounded-lg px-3 py-2 flex justify-between">
+                        <span className="text-green-400 text-xs font-medium">Cambio</span>
+                        <span className="text-green-400 font-bold text-sm">
+                          ${(mixTotal - order.total).toLocaleString()}
+                        </span>
+                      </div>
+                    )}
+                    {mixTotal > 0 && mixTotal < order.total && (
+                      <div className="bg-red-900/20 border border-red-900 rounded-lg px-3 py-2">
+                        <span className="text-red-400 text-xs">
+                          Faltan ${(order.total - mixTotal).toLocaleString()}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* QR transferencia en mixto */}
+              {TRANSFER_INFO.qrImage && (
+                <div className="border border-gray-700 rounded-xl p-3 flex flex-col items-center gap-2">
+                  <p className="text-xs text-gray-500">QR para la parte de transferencia</p>
+                  <div className="bg-white rounded-lg p-1.5">
+                    <img src={TRANSFER_INFO.qrImage} alt="QR"
+                      className="w-32 h-32 object-contain"
+                      onError={(e) => { e.currentTarget.style.display = "none"; }}
+                    />
+                  </div>
+                  <p className="text-xs text-gray-400">{TRANSFER_INFO.numero} · {TRANSFER_INFO.banco}</p>
+                </div>
+              )}
+            </div>
+          )}
+
           <button
-            onClick={() => canConfirm && onConfirm({
-              method,
-              cashGiven: method === "EFECTIVO" ? Number(cashGiven) : null,
-              change:    method === "EFECTIVO" ? Number(cashGiven) - order.total : null,
-            })}
+            onClick={handleConfirm}
             disabled={!canConfirm}
             className="w-full bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-gray-900 font-bold py-3 rounded-xl transition-colors">
             Confirmar y entregar
@@ -327,15 +440,11 @@ export default function OrdersPage() {
   const [paymentOrder, setPaymentOrder] = useState(null);
   const [editOrder, setEditOrder]       = useState(null);
 
-  // Ref para diferir el refetch cuando hay un modal abierto.
-  // Es un ref (no estado) para no causar re-renders extra.
   const pendingRefresh = useRef(false);
 
-  // ── Socket: bloquea refetch si hay modal abierto ──────
   useEffect(() => {
     const handleOrderEvent = () => {
       if (paymentOrder || editOrder) {
-        // Hay un modal activo en ESTE dispositivo → no interrumpir
         pendingRefresh.current = true;
       } else {
         refetch();
@@ -351,11 +460,8 @@ export default function OrdersPage() {
       socket.off("order:updated", handleOrderEvent);
       socket.disconnect();
     };
-  // Se re-suscribe cada vez que cambia el estado de los modales
-  // para que el closure siempre vea el valor actual
   }, [paymentOrder, editOrder]);
 
-  // Helper: cierra el modal de pago y dispara refetch pendiente si había
   const closePaymentModal = () => {
     setPaymentOrder(null);
     if (pendingRefresh.current) {
@@ -364,7 +470,6 @@ export default function OrdersPage() {
     }
   };
 
-  // Helper: cierra el modal de edición y dispara refetch pendiente si había
   const closeEditModal = () => {
     setEditOrder(null);
     if (pendingRefresh.current) {
@@ -381,7 +486,6 @@ export default function OrdersPage() {
 
   const { data: orders, loading, error, refetch } = useOrders(filter);
 
-  // ── Búsqueda local por #pedido, mesa o notas ──────────
   const filteredOrders = useMemo(() => {
     if (!orders) return [];
     const q = searchQuery.trim().toLowerCase();
@@ -429,8 +533,9 @@ export default function OrdersPage() {
         paymentMethod: paymentInfo.method,
         cashGiven:     paymentInfo.cashGiven,
         cashChange:    paymentInfo.change,
+        transferAmount: paymentInfo.transfer || null,
       });
-      pendingRefresh.current = false; // limpiar flag, refetch explícito abajo
+      pendingRefresh.current = false;
       refetch();
     } catch {
       alert("Error al confirmar el pago");
@@ -492,7 +597,7 @@ export default function OrdersPage() {
         </Link>
       </div>
 
-      {/* ── Barra de búsqueda ── */}
+      {/* Barra de búsqueda */}
       <div className="relative mb-4">
         <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
           <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -518,7 +623,6 @@ export default function OrdersPage() {
         )}
       </div>
 
-      {/* Sugerencias de búsqueda (solo cuando está vacío) */}
       {!searchQuery && (
         <div className="flex gap-2 flex-wrap mb-4">
           {["#1", "Mesa 1", "sin verduras", "sin salsa", "perro"].map((hint) => (

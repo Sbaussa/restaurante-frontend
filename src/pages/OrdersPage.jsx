@@ -204,7 +204,6 @@ function EditOrderModal({ order, onClose, onSaved }) {
 function PaymentModal({ order, onConfirm, onClose }) {
   const [method, setMethod]       = useState(null);
   const [cashGiven, setCashGiven] = useState("");
-  // Pago mixto
   const [mixCash, setMixCash]     = useState("");
   const [mixTransfer, setMixTransfer] = useState("");
 
@@ -255,7 +254,6 @@ function PaymentModal({ order, onConfirm, onClose }) {
         </div>
 
         <div className="p-6 space-y-4">
-          {/* Métodos de pago */}
           <div className="grid grid-cols-2 gap-2">
             {[
               { key: "EFECTIVO",      icon: "💵", label: "Efectivo" },
@@ -276,7 +274,6 @@ function PaymentModal({ order, onConfirm, onClose }) {
             ))}
           </div>
 
-          {/* EFECTIVO */}
           {method === "EFECTIVO" && (
             <div className="space-y-3">
               <div>
@@ -304,7 +301,6 @@ function PaymentModal({ order, onConfirm, onClose }) {
             </div>
           )}
 
-          {/* TRANSFERENCIA */}
           {method === "TRANSFERENCIA" && (
             <div className="border border-gray-700 rounded-xl overflow-hidden">
               <div className="bg-gray-800 px-4 py-2.5 border-b border-gray-700">
@@ -343,7 +339,6 @@ function PaymentModal({ order, onConfirm, onClose }) {
             </div>
           )}
 
-          {/* MIXTO */}
           {method === "MIXTO" && (
             <div className="space-y-3">
               <div className="bg-gray-800/60 border border-gray-700 rounded-xl p-4 space-y-3">
@@ -373,7 +368,6 @@ function PaymentModal({ order, onConfirm, onClose }) {
                   />
                 </div>
 
-                {/* Resumen */}
                 {(mixCashNum > 0 || mixTransferNum > 0) && (
                   <div className="border-t border-gray-700 pt-3 space-y-1.5">
                     <div className="flex justify-between text-xs">
@@ -409,7 +403,6 @@ function PaymentModal({ order, onConfirm, onClose }) {
                 )}
               </div>
 
-              {/* QR transferencia en mixto */}
               {TRANSFER_INFO.qrImage && (
                 <div className="border border-gray-700 rounded-xl p-3 flex flex-col items-center gap-2">
                   <p className="text-xs text-gray-500">QR para la parte de transferencia</p>
@@ -693,6 +686,10 @@ export default function OrdersPage() {
             const canEdit    = ["PENDING", "PREPARING", "READY"].includes(order.status);
             const q          = searchQuery.trim();
 
+            // ── FIX: fallback a "MESA" si orderType es null/undefined ──
+            const orderType = order.orderType || "MESA";
+            const typeInfo  = ORDER_TYPE_LABELS[orderType];
+
             return (
               <div key={order.id}
                 className={`bg-gray-900 border rounded-xl p-4 transition-all ${
@@ -704,13 +701,20 @@ export default function OrdersPage() {
                     <span className="text-white font-semibold text-sm">
                       Pedido #<Highlight text={String(order.id)} query={q.replace("#", "")} />
                     </span>
+
+                    {/* Badge estado */}
                     <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${st.color}`}>
                       {st.label}
                     </span>
-                    {order.orderType && ORDER_TYPE_LABELS[order.orderType] && (
-                      <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${ORDER_TYPE_LABELS[order.orderType].color}`}>
-                        {ORDER_TYPE_LABELS[order.orderType].icon} {ORDER_TYPE_LABELS[order.orderType].label}
-                        {order.orderType === "MESA" && order.tableNumber ? ` ${order.tableNumber}` : ""}
+
+                    {/* Badge tipo de orden — SIEMPRE visible con fallback a MESA */}
+                    {typeInfo && (
+                      <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${typeInfo.color}`}>
+                        {typeInfo.icon}{" "}
+                        {typeInfo.label}
+                        {orderType === "MESA" && order.tableNumber
+                          ? ` ${order.tableNumber}`
+                          : ""}
                       </span>
                     )}
                   </div>
@@ -718,6 +722,19 @@ export default function OrdersPage() {
                     ${order.total.toLocaleString()}
                   </p>
                 </div>
+
+                {/* Info domicilio */}
+                {orderType === "DOMICILIO" && order.delivery?.address && (
+                  <div className="bg-orange-900/20 border border-orange-900/40 rounded-lg px-3 py-1.5 mb-2 flex items-center gap-2">
+                    <span className="text-orange-400 text-xs">📍</span>
+                    <p className="text-orange-300 text-xs truncate">{order.delivery.address}</p>
+                    {order.delivery.customerName && (
+                      <span className="text-orange-400/60 text-xs flex-shrink-0">
+                        · {order.delivery.customerName}
+                      </span>
+                    )}
+                  </div>
+                )}
 
                 <p className="text-gray-500 text-xs mb-1 line-clamp-2">
                   {order.items.map((i, idx) => (

@@ -42,7 +42,6 @@ const TRANSFER_INFO = {
   nombre:  "Claudia Márquez Jiménez",
 };
 
-// ── Highlight matching text ───────────────────────────────
 function Highlight({ text, query }) {
   if (!query || !text) return <>{text}</>;
   const idx = String(text).toLowerCase().indexOf(query.toLowerCase());
@@ -202,16 +201,15 @@ function EditOrderModal({ order, onClose, onSaved }) {
 }
 
 function PaymentModal({ order, onConfirm, onClose }) {
-  const [method, setMethod]       = useState(null);
-  const [cashGiven, setCashGiven] = useState("");
-  const [mixCash, setMixCash]     = useState("");
+  const [method, setMethod]           = useState(null);
+  const [cashGiven, setCashGiven]     = useState("");
+  const [mixCash, setMixCash]         = useState("");
   const [mixTransfer, setMixTransfer] = useState("");
 
   const mixCashNum     = Number(mixCash) || 0;
   const mixTransferNum = Number(mixTransfer) || 0;
   const mixTotal       = mixCashNum + mixTransferNum;
   const mixOk          = method === "MIXTO" && mixCashNum > 0 && mixTransferNum > 0 && mixTotal === order.total;
-  const mixChange      = mixCashNum > 0 && mixTotal > order.total ? mixTotal - order.total : 0;
 
   const canConfirm = method && (
     method === "TRANSFERENCIA" ||
@@ -225,10 +223,10 @@ function PaymentModal({ order, onConfirm, onClose }) {
     if (!canConfirm) return;
     if (method === "MIXTO") {
       onConfirm({
-        method:      "MIXTO",
-        cashGiven:   mixCashNum,
-        transfer:    mixTransferNum,
-        change:      mixTotal > order.total ? mixTotal - order.total : 0,
+        method:    "MIXTO",
+        cashGiven: mixCashNum,
+        transfer:  mixTransferNum,
+        change:    mixTotal > order.total ? mixTotal - order.total : 0,
       });
     } else {
       onConfirm({
@@ -274,6 +272,7 @@ function PaymentModal({ order, onConfirm, onClose }) {
             ))}
           </div>
 
+          {/* EFECTIVO */}
           {method === "EFECTIVO" && (
             <div className="space-y-3">
               <div>
@@ -301,6 +300,7 @@ function PaymentModal({ order, onConfirm, onClose }) {
             </div>
           )}
 
+          {/* TRANSFERENCIA */}
           {method === "TRANSFERENCIA" && (
             <div className="border border-gray-700 rounded-xl overflow-hidden">
               <div className="bg-gray-800 px-4 py-2.5 border-b border-gray-700">
@@ -339,6 +339,7 @@ function PaymentModal({ order, onConfirm, onClose }) {
             </div>
           )}
 
+          {/* MIXTO */}
           {method === "MIXTO" && (
             <div className="space-y-3">
               <div className="bg-gray-800/60 border border-gray-700 rounded-xl p-4 space-y-3">
@@ -354,8 +355,7 @@ function PaymentModal({ order, onConfirm, onClose }) {
                       const remaining = order.total - cash;
                       if (remaining >= 0) setMixTransfer(String(remaining));
                     }}
-                    placeholder="$0"
-                    autoFocus
+                    placeholder="$0" autoFocus
                     className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-500"
                   />
                 </div>
@@ -430,7 +430,6 @@ function PaymentModal({ order, onConfirm, onClose }) {
   );
 }
 
-// ── Página principal ──────────────────────────────────────
 export default function OrdersPage() {
   const location = useLocation();
   const { user } = useAuth();
@@ -493,18 +492,13 @@ export default function OrdersPage() {
     if (!orders) return [];
     const q = searchQuery.trim().toLowerCase();
     if (!q) return orders;
-
     return orders.filter((order) => {
       const idMatch    = String(order.id).includes(q.replace("#", ""));
       const tableMatch = order.tableNumber
         ? String(order.tableNumber).toLowerCase().includes(q.replace("mesa", "").trim())
         : false;
-      const notesMatch = order.notes
-        ? order.notes.toLowerCase().includes(q)
-        : false;
-      const itemsMatch = order.items.some((i) =>
-        i.product.name.toLowerCase().includes(q)
-      );
+      const notesMatch = order.notes ? order.notes.toLowerCase().includes(q) : false;
+      const itemsMatch = order.items.some((i) => i.product.name.toLowerCase().includes(q));
       return idMatch || tableMatch || notesMatch || itemsMatch;
     });
   }, [orders, searchQuery]);
@@ -533,9 +527,9 @@ export default function OrdersPage() {
     try {
       await api.patch(`/orders/${paymentOrder.id}/status`, { status: "DELIVERED" });
       await api.patch(`/orders/${paymentOrder.id}/payment`, {
-        paymentMethod: paymentInfo.method,
-        cashGiven:     paymentInfo.cashGiven,
-        cashChange:    paymentInfo.change,
+        paymentMethod:  paymentInfo.method,
+        cashGiven:      paymentInfo.cashGiven,
+        cashChange:     paymentInfo.change,
         transferAmount: paymentInfo.transfer || null,
       });
       pendingRefresh.current = false;
@@ -600,7 +594,7 @@ export default function OrdersPage() {
         </Link>
       </div>
 
-      {/* Barra de búsqueda */}
+      {/* Búsqueda */}
       <div className="relative mb-4">
         <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
           <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -608,17 +602,14 @@ export default function OrdersPage() {
           </svg>
         </div>
         <input
-          type="text"
-          value={searchQuery}
+          type="text" value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Buscar por #pedido, mesa, notas o producto..."
           className="w-full bg-gray-800 border border-gray-700 rounded-xl pl-10 pr-10 py-2.5 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-amber-500 transition-colors"
         />
         {searchQuery && (
-          <button
-            onClick={() => setSearchQuery("")}
-            className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-white transition-colors"
-          >
+          <button onClick={() => setSearchQuery("")}
+            className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-white transition-colors">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -629,11 +620,8 @@ export default function OrdersPage() {
       {!searchQuery && (
         <div className="flex gap-2 flex-wrap mb-4">
           {["#1", "Mesa 1", "sin verduras", "sin salsa", "perro"].map((hint) => (
-            <button
-              key={hint}
-              onClick={() => setSearchQuery(hint)}
-              className="text-xs text-gray-500 bg-gray-800/60 border border-gray-700 rounded-full px-2.5 py-1 hover:text-amber-400 hover:border-amber-700 transition-colors"
-            >
+            <button key={hint} onClick={() => setSearchQuery(hint)}
+              className="text-xs text-gray-500 bg-gray-800/60 border border-gray-700 rounded-full px-2.5 py-1 hover:text-amber-400 hover:border-amber-700 transition-colors">
               {hint}
             </button>
           ))}
@@ -646,24 +634,19 @@ export default function OrdersPage() {
           {[null, "PENDING", "PREPARING", "READY", "DELIVERED", "CANCELLED"].map((s) => (
             <button key={s ?? "all"} onClick={() => setStatusFilter(s)}
               className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
-                statusFilter === s
-                  ? "bg-amber-500 text-gray-900"
-                  : "bg-gray-800 text-gray-400 hover:bg-gray-700"
+                statusFilter === s ? "bg-amber-500 text-gray-900" : "bg-gray-800 text-gray-400 hover:bg-gray-700"
               }`}>
               {s ? STATUS_LABELS[s].label : "Todos"}
             </button>
           ))}
         </div>
-
         <div className="flex items-center gap-2 flex-wrap">
           <input type="date" value={dateFilter}
             onChange={(e) => setDateFilter(e.target.value)}
             className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none focus:border-amber-500"
           />
           {dateFilter !== TODAY && (
-            <button onClick={() => setDateFilter(TODAY)} className="text-xs text-amber-500 hover:text-amber-400">
-              Hoy
-            </button>
+            <button onClick={() => setDateFilter(TODAY)} className="text-xs text-amber-500 hover:text-amber-400">Hoy</button>
           )}
           <button onClick={() => setDateFilter("")}
             className={`text-xs transition-colors ${!dateFilter ? "text-amber-400" : "text-gray-500 hover:text-white"}`}>
@@ -680,15 +663,13 @@ export default function OrdersPage() {
       ) : (
         <div className="space-y-3">
           {filteredOrders.map((order) => {
-            const st         = STATUS_LABELS[order.status];
+            const st        = STATUS_LABELS[order.status];
             const canAdvance = !!NEXT_STATUS[order.status];
             const canCancel  = ["PENDING", "PREPARING"].includes(order.status);
             const canEdit    = ["PENDING", "PREPARING", "READY"].includes(order.status);
             const q          = searchQuery.trim();
-
-            // ── FIX: fallback a "MESA" si orderType es null/undefined ──
-            const orderType = order.orderType || "MESA";
-            const typeInfo  = ORDER_TYPE_LABELS[orderType];
+            const orderType  = order.orderType || "MESA";
+            const typeInfo   = ORDER_TYPE_LABELS[orderType];
 
             return (
               <div key={order.id}
@@ -701,20 +682,13 @@ export default function OrdersPage() {
                     <span className="text-white font-semibold text-sm">
                       Pedido #<Highlight text={String(order.id)} query={q.replace("#", "")} />
                     </span>
-
-                    {/* Badge estado */}
                     <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${st.color}`}>
                       {st.label}
                     </span>
-
-                    {/* Badge tipo de orden — SIEMPRE visible con fallback a MESA */}
                     {typeInfo && (
                       <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${typeInfo.color}`}>
-                        {typeInfo.icon}{" "}
-                        {typeInfo.label}
-                        {orderType === "MESA" && order.tableNumber
-                          ? ` ${order.tableNumber}`
-                          : ""}
+                        {typeInfo.icon} {typeInfo.label}
+                        {orderType === "MESA" && order.tableNumber ? ` ${order.tableNumber}` : ""}
                       </span>
                     )}
                   </div>
@@ -723,15 +697,13 @@ export default function OrdersPage() {
                   </p>
                 </div>
 
-                {/* Info domicilio */}
+                {/* Dirección domicilio */}
                 {orderType === "DOMICILIO" && order.delivery?.address && (
                   <div className="bg-orange-900/20 border border-orange-900/40 rounded-lg px-3 py-1.5 mb-2 flex items-center gap-2">
                     <span className="text-orange-400 text-xs">📍</span>
                     <p className="text-orange-300 text-xs truncate">{order.delivery.address}</p>
                     {order.delivery.customerName && (
-                      <span className="text-orange-400/60 text-xs flex-shrink-0">
-                        · {order.delivery.customerName}
-                      </span>
+                      <span className="text-orange-400/60 text-xs flex-shrink-0">· {order.delivery.customerName}</span>
                     )}
                   </div>
                 )}
@@ -804,6 +776,7 @@ export default function OrdersPage() {
                             method:    order.paymentMethod,
                             cashGiven: order.cashGiven,
                             change:    order.cashChange,
+                            transfer:  order.transferAmount || null,
                           } : null,
                         })}
                         className="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 text-xs font-medium px-3 py-2 rounded-lg transition-colors"
@@ -821,7 +794,7 @@ export default function OrdersPage() {
             <div className="text-center py-16 text-gray-600">
               {isSearching ? (
                 <>
-                  <div className="text-4xl mb-3 flex justify-center"><Search size={40} className="text-gray-600" /></div>
+                  <div className="mb-3 flex justify-center"><Search size={40} className="text-gray-600" /></div>
                   <p className="text-gray-500">Sin resultados para <span className="text-amber-400">"{searchQuery}"</span></p>
                   <p className="text-xs mt-2 text-gray-600">Prueba con el número de pedido, mesa o una nota</p>
                   <button onClick={() => setSearchQuery("")}
@@ -831,7 +804,7 @@ export default function OrdersPage() {
                 </>
               ) : (
                 <>
-                  <div className="text-4xl mb-3 flex justify-center"><FileText size={40} className="text-gray-600" /></div>
+                  <div className="mb-3 flex justify-center"><FileText size={40} className="text-gray-600" /></div>
                   <p>No hay pedidos con este filtro!</p>
                 </>
               )}

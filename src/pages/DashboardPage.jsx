@@ -7,7 +7,7 @@ import {
 import {
   DollarSign, ShoppingBag, Target, Clock,
   XCircle, Star, Trophy, CreditCard,
-  TrendingUp, TrendingDown,
+  TrendingUp, TrendingDown, Shuffle,
 } from "lucide-react";
 
 const TODAY = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
@@ -243,6 +243,47 @@ export default function DashboardPage() {
               )}
             </div>
           </div>
+
+          {/* Pagos Mixtos */}
+          {(() => {
+            const mixedOrders = stats?.recentOrders?.filter(o => o.paymentMethod === "MIXTO") || [];
+            if (!mixedOrders.length) return null;
+            return (
+              <div className="bg-gray-900 border border-pink-900/40 rounded-xl p-4 md:p-6 mb-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <Shuffle size={15} className="text-pink-400" />
+                  <h3 className="text-sm font-semibold text-pink-400">Pagos Mixtos</h3>
+                  <span className="text-xs text-gray-500 bg-gray-800 px-2 py-0.5 rounded-full">{mixedOrders.length} pedidos</span>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="text-gray-500 border-b border-gray-800">
+                        <th className="text-left pb-2 font-medium">Pedido</th>
+                        <th className="text-right pb-2 font-medium">💵 Efectivo</th>
+                        <th className="text-right pb-2 font-medium">📲 Transferencia</th>
+                        <th className="text-right pb-2 font-medium">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {mixedOrders.map((order) => (
+                        <tr key={order.id} className="border-b border-gray-800/50 last:border-0">
+                          <td className="py-2 text-white font-medium">#{order.id}</td>
+                          <td className="py-2 text-right text-green-400 font-medium">
+                            {order.cashGiven ? `$${order.cashGiven.toLocaleString()}` : "—"}
+                          </td>
+                          <td className="py-2 text-right text-blue-400 font-medium">
+                            {order.transferAmount ? `$${order.transferAmount.toLocaleString()}` : "—"}
+                          </td>
+                          <td className="py-2 text-right text-amber-400 font-bold">${order.total.toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Top productos + Categorías + Últimos pedidos */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

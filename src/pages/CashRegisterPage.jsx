@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useFetch } from "../hooks/useData";
 import {
   DollarSign, Receipt, Target, XCircle,
-  Printer, CreditCard, BarChart2, ClipboardList,
+  Printer, CreditCard, BarChart2, ClipboardList, Shuffle,
 } from "lucide-react";
 
 const TODAY = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
@@ -33,6 +33,9 @@ const PAYMENT_ICONS = {
 export default function CashRegisterPage() {
   const [date, setDate] = useState(TODAY);
   const { data: cash, loading } = useFetch(`/cash?date=${date}`, [date]);
+
+  // Pedidos con pago mixto
+  const mixedOrders = cash?.orders?.filter((o) => o.paymentMethod === "MIXTO") || [];
 
   const handlePrint = () => {
     const fecha = new Date(date + "T12:00:00").toLocaleDateString("es-CO", {
@@ -236,6 +239,63 @@ export default function CashRegisterPage() {
               </div>
             </div>
           </div>
+
+          {/* ── Pagos Mixtos ─────────────────────────────────────── */}
+          {mixedOrders.length > 0 && (
+            <div className="bg-gray-900 border border-pink-900/40 rounded-xl p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <Shuffle size={15} className="text-pink-400" />
+                <h3 className="text-sm font-semibold text-pink-400">Pagos Mixtos del día</h3>
+                <span className="text-xs text-gray-500 bg-gray-800 px-2 py-0.5 rounded-full">{mixedOrders.length} pedidos</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="text-gray-500 border-b border-gray-800">
+                      <th className="text-left pb-2 font-medium">Pedido</th>
+                      <th className="text-left pb-2 font-medium">Hora</th>
+                      <th className="text-right pb-2 font-medium">💵 Efectivo</th>
+                      <th className="text-right pb-2 font-medium">📲 Transferencia</th>
+                      <th className="text-right pb-2 font-medium">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {mixedOrders.map((order) => (
+                      <tr key={order.id} className="border-b border-gray-800/50 last:border-0">
+                        <td className="py-2 text-white font-medium">#{order.id}</td>
+                        <td className="py-2 text-gray-500">
+                          {new Date(order.createdAt).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })}
+                        </td>
+                        <td className="py-2 text-right text-green-400 font-medium">
+                          {order.cashGiven ? `$${order.cashGiven.toLocaleString()}` : "—"}
+                        </td>
+                        <td className="py-2 text-right text-blue-400 font-medium">
+                          {order.transferAmount ? `$${order.transferAmount.toLocaleString()}` : "—"}
+                        </td>
+                        <td className="py-2 text-right text-amber-400 font-bold">
+                          ${order.total.toLocaleString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t border-gray-700">
+                      <td colSpan={2} className="pt-3 text-gray-500 font-medium">Totales</td>
+                      <td className="pt-3 text-right text-green-400 font-bold">
+                        ${mixedOrders.reduce((s, o) => s + (o.cashGiven || 0), 0).toLocaleString()}
+                      </td>
+                      <td className="pt-3 text-right text-blue-400 font-bold">
+                        ${mixedOrders.reduce((s, o) => s + (o.transferAmount || 0), 0).toLocaleString()}
+                      </td>
+                      <td className="pt-3 text-right text-amber-400 font-bold">
+                        ${mixedOrders.reduce((s, o) => s + o.total, 0).toLocaleString()}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>

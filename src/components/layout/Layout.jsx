@@ -69,7 +69,7 @@ export default function Layout() {
         {(!collapsed || !isDesktop) && (
           <div>
             <h1 className="text-lg font-bold text-amber-400 flex items-center gap-2"><UtensilsCrossed size={18} /> El Nuevo Baratón</h1>
-            <p className="text-xs text-gray-500 mt-0.5">Panel de gestión</p>
+            <p className="text-xs text-gray-500 mt-0.5">Panel de gestión v2</p>
           </div>
         )}
         {isDesktop ? (

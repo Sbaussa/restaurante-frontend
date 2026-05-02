@@ -700,7 +700,7 @@ export default function OrdersPage() {
               ) : (
                 <>
                   <p className="text-4xl mb-3">🧾</p>
-                  <p>No hay pedidos con este filtro</p>
+                  <p>No hay pedidos con este filtro!</p>
                 </>
               )}
             </div>
